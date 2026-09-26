@@ -55,6 +55,16 @@
       "rigged": false,
       "kind": "structure"
     },
+    "ballista_2": {
+      "url": "assets/models/ballista_2.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "tesla_coil_2": {
+      "url": "assets/models/tesla_coil_2.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
     "cannon": {
       "url": "assets/models/cannon.glb",
       "rigged": false,
@@ -152,6 +162,16 @@
     },
     "skeleton_warrior": {
       "url": "assets/models/skeleton_warrior.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "goblin_shaman": {
+      "url": "assets/models/goblin_shaman.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "stone_golem": {
+      "url": "assets/models/stone_golem.glb",
       "rigged": true,
       "kind": "runner"
     },
@@ -368,6 +388,8 @@
     "ley_obelisk": "assets/portraits/ley_obelisk.webp",
     "graveyard": "assets/portraits/graveyard.webp",
     "ballista": "assets/portraits/ballista.webp",
+    "ballista_2": "assets/portraits/ballista_2.webp",
+    "tesla_coil_2": "assets/portraits/tesla_coil_2.webp",
     "cannon": "assets/portraits/cannon.webp",
     "tesla_coil": "assets/portraits/tesla_coil.webp",
     "demon_tower": "assets/portraits/demon_tower.webp",
@@ -388,6 +410,8 @@
     "ogre_brute": "assets/portraits/ogre_brute.webp",
     "goblin_sapper": "assets/portraits/goblin_sapper.webp",
     "skeleton_warrior": "assets/portraits/skeleton_warrior.webp",
+    "goblin_shaman": "assets/portraits/goblin_shaman.webp",
+    "stone_golem": "assets/portraits/stone_golem.webp",
     "troll_berserker": "assets/portraits/troll_berserker.webp",
     "orc_warlord": "assets/portraits/orc_warlord.webp",
     "wraith": "assets/portraits/wraith.webp",

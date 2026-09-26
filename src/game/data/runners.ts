@@ -1,5 +1,5 @@
 export type RunnerTypeId =
-  | 'grunt' | 'scout' | 'brute' | 'skeleton' | 'troll' | 'wraith' | 'sapper' | 'leech' | 'warlord';
+  | 'grunt' | 'scout' | 'brute' | 'skeleton' | 'troll' | 'wraith' | 'sapper' | 'leech' | 'shaman' | 'golem' | 'warlord';
 
 export interface RunnerType {
   id: RunnerTypeId;
@@ -18,6 +18,8 @@ export interface RunnerType {
   saboteur?: boolean;  // throws EMP charges at generators / relays
   leech?: boolean;     // siphons power from links it passes under
   boss?: boolean;
+  healer?: boolean;      // mends nearby runners every second
+  unstoppable?: boolean; // shrugs off slows, stuns, roots and knockback
   desc: string;
 }
 
@@ -36,6 +38,10 @@ export const RUNNERS: Record<RunnerTypeId, RunnerType> = {
     desc: 'Hurls EMP charges at nearby generators and relays, knocking them offline.' },
   leech: { id: 'leech', name: 'Power Leech', model: 'power_leech', hp: 0.8, speed: 2.5, armor: 2, bounty: 1.3, lives: 1, scale: 0.6, leech: true,
     desc: 'Siphons energy from any power link it passes beneath, healing itself.' },
+  shaman: { id: 'shaman', name: 'Goblin Shaman', model: 'goblin_shaman', hp: 0.75, speed: 2.5, armor: 0, bounty: 1.6, lives: 1, scale: 0.8, healer: true,
+    desc: 'Heals nearby runners every second. Kill it first.' },
+  golem: { id: 'golem', name: 'Stone Golem', model: 'stone_golem', hp: 3, speed: 1.35, armor: 5, bounty: 2.5, lives: 2, scale: 1.35, unstoppable: true,
+    desc: 'Slow and heavily armored. Immune to slows, stuns, roots and knockback.' },
   warlord: { id: 'warlord', name: 'Orc Warlord', model: 'orc_warlord', hp: 10, speed: 1.9, armor: 4, bounty: 12, lives: 5, scale: 1.6, boss: true,
     desc: 'Boss. Enormous health, costs 5 lives if it gets through, and rallies nearby runners (+20% speed).' },
 };
@@ -83,26 +89,26 @@ const SCRIPT: Record<number, [string, [RunnerTypeId, number][]]> = {
   8: ['Saboteurs', [['grunt', 0.6], ['sapper', 0.4]]],
   9: ['', [['skeleton', 0.5], ['troll', 0.3], ['sapper', 0.2]]],
   10: ['Feedback · Warlord', [['wraith', 0.7], ['grunt', 0.3], ['warlord', 0]]],
-  11: ['', [['grunt', 0.4], ['troll', 0.3], ['scout', 0.3]]],
+  11: ['Shamans', [['shaman', 0.25], ['grunt', 0.45], ['troll', 0.3]]],
   12: ['Leeches', [['leech', 0.6], ['grunt', 0.4]]],
   13: ['', [['skeleton', 0.4], ['sapper', 0.3], ['wraith', 0.3]]],
-  14: ['', [['troll', 0.5], ['leech', 0.25], ['scout', 0.25]]],
+  14: ['', [['troll', 0.45], ['shaman', 0.2], ['scout', 0.35]]],
   15: ['Speed · Feedback', [['scout', 0.6], ['wraith', 0.4]]],
   16: ['Brutes', [['brute', 0.6], ['grunt', 0.4]]],
   17: ['', [['brute', 0.3], ['sapper', 0.3], ['leech', 0.4]]],
-  18: ['', [['troll', 0.4], ['skeleton', 0.3], ['wraith', 0.3]]],
+  18: ['Golems', [['golem', 0.35], ['skeleton', 0.35], ['shaman', 0.3]]],
   19: ['', [['brute', 0.4], ['scout', 0.3], ['sapper', 0.3]]],
   20: ['Shield · Warlord', [['brute', 0.8], ['grunt', 0.2], ['warlord', 0]]],
   21: ['', [['leech', 0.35], ['wraith', 0.35], ['troll', 0.3]]],
-  22: ['', [['brute', 0.4], ['skeleton', 0.3], ['sapper', 0.3]]],
+  22: ['', [['golem', 0.3], ['brute', 0.3], ['sapper', 0.2], ['shaman', 0.2]]],
   23: ['', [['scout', 0.4], ['troll', 0.3], ['leech', 0.3]]],
   24: ['', [['brute', 0.35], ['wraith', 0.35], ['sapper', 0.3]]],
   25: ['Speed · Shield', [['scout', 0.5], ['brute', 0.5]]],
-  26: ['', [['troll', 0.3], ['brute', 0.3], ['leech', 0.2], ['sapper', 0.2]]],
+  26: ['', [['troll', 0.3], ['golem', 0.3], ['leech', 0.2], ['shaman', 0.2]]],
   27: ['', [['wraith', 0.4], ['skeleton', 0.3], ['scout', 0.3]]],
   28: ['', [['brute', 0.4], ['troll', 0.3], ['leech', 0.3]]],
   29: ['', [['sapper', 0.3], ['wraith', 0.3], ['brute', 0.4]]],
-  30: ['The Horde · Warlords', [['brute', 0.25], ['scout', 0.25], ['wraith', 0.25], ['troll', 0.25], ['warlord', 0]]],
+  30: ['The Horde · Warlords', [['brute', 0.2], ['scout', 0.2], ['wraith', 0.2], ['troll', 0.2], ['golem', 0.2], ['warlord', 0]]],
 };
 
 export function buildWave(round: number, rng: () => number): WaveDef {
@@ -112,7 +118,7 @@ export function buildWave(round: number, rng: () => number): WaveDef {
   if (SCRIPT[round]) {
     [name, mix] = SCRIPT[round];
   } else {
-    const pool: RunnerTypeId[] = ['grunt', 'scout', 'brute', 'skeleton', 'troll', 'wraith', 'sapper', 'leech'];
+    const pool: RunnerTypeId[] = ['grunt', 'scout', 'brute', 'skeleton', 'troll', 'wraith', 'sapper', 'leech', 'shaman', 'golem'];
     const picks = new Set<RunnerTypeId>();
     while (picks.size < 3) picks.add(pool[Math.floor(rng() * pool.length)]);
     mix = [...picks].map((t) => [t, 1 / 3] as [RunnerTypeId, number]);

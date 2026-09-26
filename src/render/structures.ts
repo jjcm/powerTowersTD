@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Game } from '../game/sim';
 import type { Structure } from '../game/types';
+import { structureModel } from '../game/data/structures';
 import type { Assets } from './assets';
 import { ChunkedInstances } from './instanced';
 import type { LightPool } from './lights';
@@ -11,6 +12,7 @@ import { rigTemplate, TurretRig, partTemplate, PartRig, PART_RIGS } from './rigs
 interface View {
   rig?: TurretRig;
   part?: PartRig;
+  modelId: string;
   status?: THREE.Sprite;
   statusKey?: string;
   s: Structure;
@@ -59,13 +61,14 @@ export class StructureViews {
     const group = new THREE.Group();
     let object: THREE.Object3D;
     let rig: TurretRig | undefined;
-    const tpl = this.assets.get(s.def.model);
-    const rt = ROTATES.has(s.def.id) ? rigTemplate(s.def.id as 'ballista' | 'cannon', tpl.root, tpl.procedural) : null;
+    const modelId = structureModel(s.def, s.level);
+    const tpl = this.assets.get(modelId);
+    const rt = ROTATES.has(s.def.id) ? rigTemplate(s.def.id as 'ballista' | 'cannon', modelId, tpl.root, tpl.procedural) : null;
     let part: PartRig | undefined;
-    const pt = rt ? null : partTemplate(s.def.id, tpl.root, tpl.procedural);
+    const pt = rt ? null : partTemplate(s.def.id, modelId, tpl.root, tpl.procedural);
     if (rt) { rig = new TurretRig(rt, s.aim); object = rig.root; }
-    else if (pt) { part = new PartRig(pt, PART_RIGS[s.def.id]); object = part.root; }
-    else object = this.assets.instantiate(s.def.model).object;
+    else if (pt) { part = new PartRig(pt, PART_RIGS[modelId] ?? PART_RIGS[s.def.id]); object = part.root; }
+    else object = this.assets.instantiate(modelId).object;
     group.add(object);
     group.position.set(s.cx, this.terrain.footprintBase(s.x, s.z, s.def.size) + this.baseOffset(s), s.cz);
     if (!ROTATES.has(s.def.id)) object.rotation.y = s.def.id === 'water_wheel' ? this.waterYaw(s) : 0;
@@ -77,13 +80,13 @@ export class StructureViews {
     glow.scale.setScalar(s.def.size === 1 ? 1.2 : 1.8);
     group.add(glow);
     this.group.add(group);
-    this.views.set(s.id, { s, group, model: object, glow, glowY, born: this.time, level: s.level, height, pulse: 0, rig, part });
+    this.views.set(s.id, { s, group, model: object, glow, glowY, born: this.time, level: s.level, height, pulse: 0, rig, part, modelId });
     if (s.def.size === 1) this.wallsDirty = true; // pylons/obelisks connect to walls
   }
 
   private makeWallView(s: Structure): View {
     const g = new THREE.Group();
-    return { s, group: g, model: g, glow: new THREE.Sprite(), glowY: 0, born: this.time, level: s.level, height: 1.3, pulse: 0 };
+    return { s, group: g, model: g, glow: new THREE.Sprite(), glowY: 0, born: this.time, level: s.level, height: 1.3, pulse: 0, modelId: s.def.model };
   }
 
   private baseOffset(s: Structure) {
@@ -104,14 +107,7 @@ export class StructureViews {
 
   /** A model finished streaming in: rebuild the views that were showing its placeholder. */
   refreshModel(modelId: string) {
-    for (const [id, v] of [...this.views]) {
-      if (v.s.def.model !== modelId) continue;
-      const born = v.born;
-      this.remove(id);
-      this.add(v.s);
-      const nv = this.views.get(id);
-      if (nv) nv.born = born;          // no second build-rise animation
-    }
+    for (const [id, v] of [...this.views]) if (v.modelId === modelId) this.rebuild(id);
   }
 
   remove(id: number) {
@@ -124,8 +120,20 @@ export class StructureViews {
 
   upgraded(id: number) {
     const v = this.views.get(id);
-    if (v) v.pulse = 1;
+    if (v && structureModel(v.s.def, v.s.level) !== v.modelId) this.rebuild(id);   // grew into its upgraded look
+    const nv = this.views.get(id);
+    if (nv) nv.pulse = 1;
     if (v?.s.def.id === 'wall') this.wallsDirty = true;
+  }
+
+  /** Recreate a view in place (new model), without replaying the build-rise. */
+  private rebuild(id: number) {
+    const v = this.views.get(id);
+    if (!v) return;
+    this.remove(id);
+    this.add(v.s);
+    const nv = this.views.get(id);
+    if (nv) nv.born = v.born;
   }
 
   sync() {

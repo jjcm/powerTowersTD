@@ -24,7 +24,7 @@ console.log('axis', ax.toFixed(3), az.toFixed(3), 'H', H.toFixed(3));
 const cfg = JSON.parse(process.argv[3] ?? '{}');
 // PCA of clearly-barrel points (cannon)
 let bc = [0, 0, 0], bd = [1, 0, 0];
-if (id === 'cannon') {
+if (id.startsWith('cannon')) {
   const cen = (ps) => [0, 1, 2].map((k) => ps.reduce((a, p) => a + p[k], 0) / ps.length);
   const top = tris.filter((p) => yr(p) > cfg.split + 0.05);
   const minDx = Math.min(...top.map((p) => (p[0] - ax) / H));
@@ -39,7 +39,7 @@ if (id === 'cannon') {
 const cls = (p) => {
   const y = yr(p), dx = (p[0] - ax) / H, dz = (p[2] - az) / H;
   if (y < cfg.split) return 0; // base
-  if (id === 'ballista') {
+  if (id.startsWith('ballista')) {
     if (dx > cfg.crankX && dz < cfg.crankZ && dz > cfg.crankZ2 && y > cfg.limbY) return 5; // winch crank
     if (Math.abs(dx) > cfg.limb && y > cfg.limbY) return dx < 0 ? 2 : 3; // limbs
     if (Math.abs(dx) < cfg.boltW && y > cfg.boltY && dz > cfg.boltZ) return 4; // bolt

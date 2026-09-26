@@ -37,8 +37,10 @@ const FIT: Record<string, { height: number; footprint: number; yaw?: number }> =
   mana_well: { height: 1.9, footprint: 1.95 },
   graveyard: { height: 1.8, footprint: 2.0 },
   ballista: { height: 2.3, footprint: 1.9 },
+  ballista_2: { height: 2.75, footprint: 1.95 },   // upgraded look: a notch grander
   cannon: { height: 2.2, footprint: 1.9 },
   tesla_coil: { height: 3.7, footprint: 1.8 },
+  tesla_coil_2: { height: 4.2, footprint: 1.85 },
   demon_tower: { height: 3.2, footprint: 1.9 },
   lich_tower: { height: 3.5, footprint: 1.9 },
   chemical_tower: { height: 2.9, footprint: 1.95 },
@@ -258,7 +260,7 @@ export function procedural(id: string): THREE.Object3D {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.22, 1.0, 8), mat(STONE)); p.position.y = 0.5; g.add(p);
     const b = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.15, 0.25, 10), mat(GOLD, 0, 0.35, 0.8)); b.position.y = 1.1; g.add(b);
   } else if (['orc_grunt', 'goblin_scout', 'ogre_brute', 'goblin_sapper', 'skeleton_warrior', 'troll_berserker', 'orc_warlord', 'wraith', 'power_leech', 'whelp'].includes(id)) {
-    const col: Record<string, number> = { orc_grunt: 0x6aa84f, goblin_scout: 0x9bc53d, ogre_brute: 0x8a6a4a, goblin_sapper: 0x7fb069, skeleton_warrior: 0xe8e2cf, troll_berserker: 0x4f86c6, orc_warlord: 0x3a5f2a, wraith: 0x8e6bd6, power_leech: 0x2b4f7a, whelp: 0xd83a2a };
+    const col: Record<string, number> = { orc_grunt: 0x6aa84f, goblin_scout: 0x9bc53d, ogre_brute: 0x8a6a4a, goblin_sapper: 0x7fb069, skeleton_warrior: 0xe8e2cf, troll_berserker: 0x4f86c6, orc_warlord: 0x3a5f2a, wraith: 0x8e6bd6, power_leech: 0x2b4f7a, whelp: 0xd83a2a, goblin_shaman: 0x7a4ab0, stone_golem: 0x8a8a80 };
     const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.45, 4, 8), mat(col[id] ?? 0x888888));
     body.position.y = 0.55; g.add(body);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), mat(col[id] ?? 0x888888));

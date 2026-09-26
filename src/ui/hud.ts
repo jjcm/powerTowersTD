@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Tutorial } from './tutorial';
+import { structureModel } from '../game/data/structures';
 import type { Game } from '../game/sim';
 import type { Structure } from '../game/types';
 import { STRUCTURES, BUILD_TABS, SPELLS, M, levelCost, totalCost, type StructureDef, type StructureId } from '../game/data/structures';
@@ -420,7 +421,7 @@ export class Hud {
     const badges = this.refs.portrait.querySelector('.badges') as HTMLElement;
     this.refs.tabs.classList.toggle('hidden', !!s || c.mode.kind === 'link');
     if (s) {
-      this.setImg(pimg, this.assets.portrait(s.def.model));
+      this.setImg(pimg, this.assets.portrait(structureModel(s.def, s.level)) ?? this.assets.portrait(s.def.model));
       this.refs.pname.innerHTML = s.def.attack ? `${s.def.name}<small>${s.kills} kills · ${fmt(s.damage)} dmg</small>` : s.def.name;
       lvl.textContent = s.def.id === 'hero_tower' ? `Lv ${s.heroLevel}` : s.def.maxLevel > 1 ? `Lv ${s.level}` : '';
       lvl.style.display = lvl.textContent ? '' : 'none';
@@ -711,7 +712,7 @@ export class Hud {
     this.previewKey = key;
     const wave = buildWave(g.round + 1, () => 0.37);
     const badge = (t: (typeof RUNNERS)[keyof typeof RUNNERS]) =>
-      t.boss ? '👑' : t.saboteur ? '💥' : t.drain ? '⚡' : t.leech ? '🩸' : t.shield ? '🛡' : t.regen ? '✚' : t.flying ? '🪶' : '';
+      t.boss ? '👑' : t.saboteur ? '💥' : t.drain ? '⚡' : t.leech ? '🩸' : t.shield ? '🛡' : t.healer ? '✚' : t.unstoppable ? '⛰' : t.regen ? '♥' : t.flying ? '🪶' : '';
     this.refs.preview.innerHTML = `<span class="lbl">Next</span>` + wave.groups.map((gr) => {
       const t = RUNNERS[gr.type];
       const b = badge(t);
@@ -729,7 +730,7 @@ export class Hud {
       const t = RUNNERS[gr.type];
       return `<span>${gr.count}× ${t.name}</span><b>${fmt(hp * t.hp)} hp · ${t.speed.toFixed(1)} spd</b>`;
     }).join('');
-    const notes = [...new Set(wave.groups.map((gr) => RUNNERS[gr.type]).filter((t) => t.drain || t.saboteur || t.leech || t.shield || t.regen || t.boss).map((t) => `<p style="color:#ffb08a">${t.name}: ${t.desc}</p>`))].join('');
+    const notes = [...new Set(wave.groups.map((gr) => RUNNERS[gr.type]).filter((t) => t.drain || t.saboteur || t.leech || t.shield || t.regen || t.boss || t.healer || t.unstoppable).map((t) => `<p style="color:#ffb08a">${t.name}: ${t.desc}</p>`))].join('');
     return { title: `Round ${r}${wave.name ? ` · ${wave.name}` : ''}`, body: `<div class="stats">${rows}</div>${notes}${early}<p style="color:#a9a293">${r > MAX_ROUND ? 'Endless mode.' : `${MAX_ROUND - r + 1} rounds to victory.`} Hotkey: Space</p>` };
   }
 

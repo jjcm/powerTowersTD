@@ -35,7 +35,9 @@ npm run build      # static build in dist/
   - **Power Leeches**: siphon energy from links they walk under.
   - **Ogre Brutes**: carry regenerating shields.
   - **Warlords**: bosses that rally nearby runners.
-- The stat-scaling rule comes from the original: almost every stat scales with `2^L − 1`, and upgrading to level L costs `base × 2^(L−1)`. Damage per gold stays flat, so upgrades are about packing more power into limited maze space. Relays (Pylon, Obelisk) grow ×3 per level. Walls sell for full value between waves, 75% during one.
+  - **Goblin Shamans** (from round 11): heal every runner nearby once a second. Kill them first.
+  - **Stone Golems** (from round 18): slow and heavily armored, and immune to slows, stuns, roots and knockback.
+- The stat-scaling rule comes from the original: almost every stat scales with `2^L − 1`, and upgrading to level L costs `base × 2^(L−1)`. Damage per gold stays flat, so upgrades are about packing more power into limited maze space. Relays (Pylon, Obelisk) grow ×3 per level. Walls sell for full value between waves, 75% during one. The Ballista and Tesla Coil take on a grander model from level 4.
 - Difficulties: Squire, Knight, Warlord and Doom (cubic health growth). The curves come from the original map's and are tuned with the balance bot. 30 rounds, then Endless.
 
 ## Visuals

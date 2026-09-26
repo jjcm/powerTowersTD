@@ -61,6 +61,11 @@ export const MODELS = [
   // ---------------- combat ----------------
   { id: 'ballista', kind: 'structure', polycount: 12000,
     prompt: `A heavy siege ballista tower: a short round stone tower with a wooden and gold-trimmed giant crossbow turret on top, loaded with a huge iron-tipped bolt. ${STYLE}` },
+  // upgraded looks, swapped in from level 4 (same composition as the originals so the turret/part rigs carry over)
+  { id: 'ballista_2', kind: 'structure', polycount: 14000,
+    prompt: `A fortified master ballista tower: a taller round stone tower with gilded battlements and small blue banners, topped by a massive dark-wood and gold giant crossbow turret with wide arms, loaded with a huge iron-tipped bolt pointing forward. ${STYLE}` },
+  { id: 'tesla_coil_2', kind: 'structure', polycount: 15000,
+    prompt: `A towering arch tesla coil: tall stacked gold and copper coil rings around a large blazing electric-blue crystal core, crowned with a large glowing copper orb, dark stone base with gold trim and glowing blue runes. Solid object only: no lightning bolts, no electric arcs, no sparks, no effects around it. ${STYLE}` },
   { id: 'cannon', kind: 'structure', polycount: 12000,
     prompt: `A cannon tower: a massive dark bronze cannon on a rotating gold-trimmed turret ring atop a short round slate-blue stone tower base. ${STYLE}` },
   { id: 'tesla_coil', kind: 'structure', polycount: 14000,
@@ -105,6 +110,10 @@ export const MODELS = [
     prompt: `A goblin sapper with welding goggles carrying a crackling blue electric bomb in a harness on its back, holding a wrench. ${CHAR_STYLE}` },
   { id: 'skeleton_warrior', kind: 'runner', polycount: 8000, rig: { height: 1.8, actions: [8] },
     prompt: `An undead skeleton warrior in rusty armor pieces with glowing blue eyes, holding a notched sword. ${CHAR_STYLE}` },
+  { id: 'goblin_shaman', kind: 'runner', polycount: 9000, rig: { height: 1.2, actions: [8] },
+    prompt: `A hunched green goblin shaman in a feathered bone mask and ragged purple robes, holding a gnarled wooden staff topped with a glowing green skull. ${CHAR_STYLE}` },
+  { id: 'stone_golem', kind: 'runner', polycount: 12000, rig: { height: 2.4, actions: [8] },
+    prompt: `A hulking stone golem made of mossy gray boulders held together by glowing orange runes, huge stone fists and stocky legs, standing upright. ${CHAR_STYLE}` },
   { id: 'troll_berserker', kind: 'runner', polycount: 9000, rig: { height: 2.0, actions: [8] },
     prompt: `A lanky blue-skinned jungle troll berserker with tusks, a red mohawk and bone jewelry, holding a throwing axe. ${CHAR_STYLE}` },
   { id: 'orc_warlord', kind: 'runner', polycount: 14000, rig: { height: 2.6, actions: [8] },

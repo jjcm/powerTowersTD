@@ -43,6 +43,8 @@ export interface StructureDef {
   id: StructureId;
   name: string;
   model: string;
+  /** A grander model shown from UPGRADE_LOOK_LEVEL on. */
+  upgradeModel?: string;
   size: 1 | 2;
   cost: number;
   maxLevel: number;
@@ -107,7 +109,7 @@ export const STRUCTURES: Record<StructureId, StructureDef> = {
 
   // ------------------------------------------------------------------ towers I
   ballista: {
-    id: 'ballista', name: 'Ballista', model: 'ballista', size: 2, cost: 60, maxLevel: 6, tab: 'towers1', color: 0xc9a46a,
+    id: 'ballista', name: 'Ballista', model: 'ballista', upgradeModel: 'ballista_2', size: 2, cost: 60, maxLevel: 6, tab: 'towers1', color: 0xc9a46a,
     desc: 'Dependable bolt thrower. Works without power.',
     powered: 'Powered: attack speed +60%.',
     energy: { cap: 40, transfer: 10 },
@@ -121,7 +123,7 @@ export const STRUCTURES: Record<StructureId, StructureDef> = {
     attack: { damage: 30, cooldown: 3.0, poweredCooldown: 0.75, range: 11, consumption: 4, projectile: 'cannonball', projectileSpeed: 12, splash: 1.8 },
   },
   tesla_coil: {
-    id: 'tesla_coil', name: 'Tesla Coil', model: 'tesla_coil', size: 2, cost: 100, maxLevel: 6, tab: 'towers1', color: 0x57c7ff,
+    id: 'tesla_coil', name: 'Tesla Coil', model: 'tesla_coil', upgradeModel: 'tesla_coil_2', size: 2, cost: 100, maxLevel: 6, tab: 'towers1', color: 0x57c7ff,
     desc: 'An energy hog that is next to useless unpowered, devastating when fed.',
     powered: 'Powered: chain lightning arcs between multiple runners, halving damage each jump.',
     energy: { cap: 160, transfer: 40 }, spell: 'thunderstorm',
@@ -278,3 +280,11 @@ export const SPELLS: Record<SpellId, SpellDef> = {
 
 export const isTower = (d: StructureDef) => !!d.attack || d.id === 'clock_tower';
 export const isGenerator = (d: StructureDef) => !!(d.energy?.production || d.mana?.production);
+
+/** Towers with an upgraded look switch to it at this level (reached after Engineering). */
+export const UPGRADE_LOOK_LEVEL = 4;
+
+/** The model a structure shows at its current level. */
+export function structureModel(def: StructureDef, level: number) {
+  return def.upgradeModel && level >= UPGRADE_LOOK_LEVEL ? def.upgradeModel : def.model;
+}

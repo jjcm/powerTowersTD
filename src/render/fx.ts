@@ -368,6 +368,17 @@ export class Effects {
         this.tweens.push({ sprite, from: P(e.x, 0.8 + this.gh(e.x, e.z), e.z), to: () => (this.game.structById.has(target.id) ? this.sv.anchor(target) : null), t: 0, dur: 1.1, kind: 'soul' });
         break;
       }
+      case 'heal': {
+        // a green pulse around the shaman and motes rising from everyone it mends
+        this.nova(e.x, e.z, e.r, 'heal');
+        for (let i = 0; i < 10; i++) {
+          const a = Math.random() * Math.PI * 2, d = Math.random() * e.r;
+          const x = e.x + Math.cos(a) * d, z = e.z + Math.sin(a) * d;
+          this.add.emit({ x, y: this.gh(x, z) + 0.3 + Math.random() * 0.5, z, vy: 1.1 + Math.random() * 0.6, color: 0x7dff9a, size: 0.25, life: 0.8, drag: 0.4 });
+        }
+        this.lights.flash(e.x, this.gh(e.x, e.z) + 1, e.z, 0x6aff8a, 5, 4.5, 0.35);
+        break;
+      }
       case 'emp': break;
       case 'death': {
         const p = P(e.x, 0.6 + this.gh(e.x, e.z), e.z);
@@ -510,7 +521,7 @@ export class Effects {
   }
 
   private nova(x: number, z: number, r: number, kind: string) {
-    const colors: Record<string, number> = { frost: 0x8fe0ff, water: 0x3aa8ff, despair: 0xa64dff, entangle: 0x5aff4a, clock: 0xffd86a, emp: 0x7fd4ff, fire: 0xff6a1a, holy: 0xffe08a, arcane: 0x9a8aff, dust: 0xc8b090, acid: 0x7dff3a };
+    const colors: Record<string, number> = { frost: 0x8fe0ff, water: 0x3aa8ff, despair: 0xa64dff, entangle: 0x5aff4a, clock: 0xffd86a, emp: 0x7fd4ff, fire: 0xff6a1a, holy: 0xffe08a, arcane: 0x9a8aff, dust: 0xc8b090, acid: 0x7dff3a, heal: 0x6aff8a };
     const color = colors[kind] ?? 0xffffff;
     const mat = new THREE.MeshBasicMaterial({ map: ringTexture(), color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: kind === 'clock' ? 0.35 : 0.9 });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);

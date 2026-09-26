@@ -324,7 +324,7 @@ async function boot() {
   for (const id of ['wall', 'pylon', 'furnace', 'water_wheel', 'solar_panel', 'capacitor', 'ballista', 'cannon', 'tesla_coil'] as const) early.add(STRUCTURES[id].model);
   for (let r = 1; r <= 6; r++) for (const gr of buildWave(r, () => 0.5).groups) early.add(RUNNERS[gr.type].model);
   const all = new Set<string>(early);
-  for (const d of Object.values(STRUCTURES)) all.add(d.model);
+  for (const d of Object.values(STRUCTURES)) { all.add(d.model); if (d.upgradeModel) all.add(d.upgradeModel); }
   for (const r of Object.values(RUNNERS)) all.add(r.model);
   const late = [...all].filter((id) => !early.has(id));
   let texDone = 0;

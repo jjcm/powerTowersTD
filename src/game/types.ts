@@ -64,6 +64,7 @@ export interface Runner {
   hp: number; maxHp: number;
   shield: number; shieldMax: number; shieldDelay: number;
   regenDelay: number;
+  healT: number;        // shaman: seconds to the next heal pulse
   x: number; z: number;
   leg: number;
   heading: number;
@@ -143,5 +144,6 @@ export type GameEvent =
   | { type: 'sell'; x: number; z: number; size: number }
   | { type: 'upgrade'; structureId: number }
   | { type: 'soul'; x: number; z: number; toId: number }
+  | { type: 'heal'; x: number; z: number; r: number }
   | { type: 'message'; text: string; kind?: 'info' | 'warn' | 'good' | 'round' }
   | { type: 'sound'; name: string; x?: number; z?: number; vol?: number };

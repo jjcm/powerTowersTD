@@ -33,6 +33,17 @@ interface RigTemplate {
 
 const cache = new Map<string, RigTemplate | null>();
 
+/**
+ * Ballista part rules, in units of the model height H relative to the tower axis (found by
+ * profiling each model with tools/inspect_split.mjs). Upgraded models get their own set.
+ */
+interface BallistaRules { split: number; crankX: number; crankZ0: number; crankZ1: number; limbX: number; limbY: number; boltY: number; boltZ: number }
+const BALLISTA_RULES: Record<string, BallistaRules> = {
+  ballista: { split: 0.7, crankX: 0.09, crankZ0: -0.3, crankZ1: -0.12, limbX: 0.13, limbY: 0.78, boltY: 0.84, boltZ: 0.05 },
+  // taller tower: cut above the battlements so the rim doesn't turn with the turret
+  ballista_2: { split: 0.78, crankX: 0.09, crankZ0: -0.3, crankZ1: -0.12, limbX: 0.13, limbY: 0.82, boltY: 0.84, boltZ: 0.05 },
+};
+
 /** Triangles of every mesh in a template, in template space. */
 function collect(template: THREE.Object3D) {
   template.updateMatrixWorld(true);
@@ -60,7 +71,8 @@ function collect(template: THREE.Object3D) {
   return meshes;
 }
 
-function build(kind: 'ballista' | 'cannon', template: THREE.Object3D): RigTemplate | null {
+function build(kind: 'ballista' | 'cannon', template: THREE.Object3D, modelId: string = kind): RigTemplate | null {
+  const R = BALLISTA_RULES[modelId] ?? BALLISTA_RULES.ballista;
   const meshes = collect(template);
   if (!meshes.length) return null;
   let minY = Infinity, maxY = -Infinity;
@@ -74,7 +86,7 @@ function build(kind: 'ballista' | 'cannon', template: THREE.Object3D): RigTempla
     if (y > 0.3 && y < 0.45) { x0 = Math.min(x0, m.cent[i]); x1 = Math.max(x1, m.cent[i]); z0 = Math.min(z0, m.cent[i + 2]); z1 = Math.max(z1, m.cent[i + 2]); }
   }
   const ax = (x0 + x1) / 2, az = (z0 + z1) / 2;
-  const split = kind === 'ballista' ? 0.7 : 0.52;
+  const split = kind === 'ballista' ? R.split : 0.52;
   const turretPivot = new THREE.Vector3(ax, minY + split * H, az);
 
   // cannon barrel axis: centre of the muzzle face -> cascabel knob at the rear
@@ -98,7 +110,7 @@ function build(kind: 'ballista' | 'cannon', template: THREE.Object3D): RigTempla
     let sx = 0, n = 0;
     for (const m of meshes) for (let i = 0; i < m.cent.length; i += 3) {
       const dx = (m.cent[i] - ax) / H, dz = (m.cent[i + 2] - az) / H;
-      if (yr(m.cent[i + 1]) > 0.84 && dz > 0.33 && Math.abs(dx) < 0.1) { sx += dx; n++; }
+      if (yr(m.cent[i + 1]) > R.boltY && dz > 0.33 && Math.abs(dx) < 0.1) { sx += dx; n++; }
     }
     boltX = n ? sx / n : 0;
   }
@@ -106,14 +118,14 @@ function build(kind: 'ballista' | 'cannon', template: THREE.Object3D): RigTempla
   // bowstring: the model is strung at rest, so the string is the back-most straight line across
   // each limb. Fit it per side from the back-most point in narrow dx bins (ignoring the winch).
   const strLine: { a: number; b: number; tip: number }[] = [];
-  const inCrank = (dx: number, dz: number, r: number) => dx > 0.09 && dz < -0.12 && dz > -0.3 && r > 0.78;
+  const inCrank = (dx: number, dz: number, r: number) => dx > R.crankX && dz < R.crankZ1 && dz > R.crankZ0 && r > R.limbY;
   if (kind === 'ballista') {
     for (const side of [-1, 1]) {
       let tip = 0;
       const bins = new Map<number, number>();
       for (const m of meshes) for (let i = 0; i < m.cent.length; i += 3) {
         const r = yr(m.cent[i + 1]), dx = (m.cent[i] - ax) / H, dz = (m.cent[i + 2] - az) / H, u = dx * side;
-        if (r < 0.78 || u < 0.13 || inCrank(dx, dz, r)) continue;
+        if (r < R.limbY || u < R.limbX || inCrank(dx, dz, r)) continue;
         tip = Math.max(tip, u);
         const k = Math.floor(u / 0.02);
         bins.set(k, Math.min(bins.get(k) ?? Infinity, dz));
@@ -133,13 +145,13 @@ function build(kind: 'ballista' | 'cannon', template: THREE.Object3D): RigTempla
     if (kind === 'ballista') {
       if (inCrank(dx, dz, r)) return 'crank';
       const u = Math.abs(dx), L = strLine[dx < 0 ? 0 : 1];
-      if (L && r > 0.78 && u > 0.06 && u < L.tip - 0.02) {
+      if (L && r > R.limbY && u > 0.06 && u < L.tip - 0.02) {
         const lz = L.a + L.b * u;
-        if (u < 0.13 ? dz > lz - 0.012 && dz < lz + 0.02 : dz > lz - 0.03 && dz < lz + 0.035) return 'string';
+        if (u < R.limbX ? dz > lz - 0.012 && dz < lz + 0.02 : dz > lz - 0.03 && dz < lz + 0.035) return 'string';
       }
-      if (Math.abs(dx) > 0.13 && r > 0.78) return dx < 0 ? 'limbL' : 'limbR';
       const bx = Math.abs(dx - boltX);
-      if (r > 0.84 && ((bx < 0.035 && dz > 0.05) || (bx < 0.07 && dz > 0.36))) return 'bolt'; // shaft + broad head
+      if (r > R.boltY && ((bx < 0.035 && dz > R.boltZ) || (bx < 0.07 && dz > 0.36))) return 'bolt'; // shaft + broad head
+      if (Math.abs(dx) > R.limbX && r > R.limbY) return dx < 0 ? 'limbL' : 'limbR';
       return 'turret';
     }
     const vx = x - bc.x, vy = y - bc.y, vz = z - bc.z;
@@ -213,10 +225,10 @@ function build(kind: 'ballista' | 'cannon', template: THREE.Object3D): RigTempla
   return rig;
 }
 
-export function rigTemplate(kind: 'ballista' | 'cannon', template: THREE.Object3D, procedural: boolean): RigTemplate | null {
+export function rigTemplate(kind: 'ballista' | 'cannon', modelId: string, template: THREE.Object3D, procedural: boolean): RigTemplate | null {
   if (procedural) return null;
-  if (!cache.has(kind)) cache.set(kind, build(kind, template));
-  return cache.get(kind)!;
+  if (!cache.has(modelId)) cache.set(modelId, build(kind, template, modelId));
+  return cache.get(modelId)!;
 }
 
 // ------------------------------------------------------------------ instances
@@ -483,11 +495,11 @@ function buildPart(template: THREE.Object3D, cfg: PartRigConfig): PartTemplate |
   return { base, top, pivot: new THREE.Vector3(ax, minY + cfg.split * H, az), height: H };
 }
 
-export function partTemplate(id: string, template: THREE.Object3D, procedural: boolean): PartTemplate | null {
-  const cfg = PART_RIGS[id];
+export function partTemplate(id: string, modelId: string, template: THREE.Object3D, procedural: boolean): PartTemplate | null {
+  const cfg = PART_RIGS[modelId] ?? PART_RIGS[id];
   if (!cfg || procedural) return null;
-  if (!partCache.has(id)) partCache.set(id, buildPart(template, cfg));
-  return partCache.get(id)!;
+  if (!partCache.has(modelId)) partCache.set(modelId, buildPart(template, cfg));
+  return partCache.get(modelId)!;
 }
 
 export class PartRig {

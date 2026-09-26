@@ -444,7 +444,7 @@ export class Game {
     const jx = (this.rng() - 0.5) * 1.2, jz = (this.rng() - 0.5) * 1.2;
     const r: Runner = {
       id: this.id(), type, hp, maxHp: hp, shield: type.shield ? hp * type.shield : 0, shieldMax: type.shield ? hp * type.shield : 0,
-      shieldDelay: 0, regenDelay: 0, x: this.grid.spawnPos.x + jx, z: this.grid.spawnPos.z + jz, leg: 0, heading: 0, speedMul: 1, moving: true,
+      shieldDelay: 0, regenDelay: 0, healT: 1, x: this.grid.spawnPos.x + jx, z: this.grid.spawnPos.z + jz, leg: 0, heading: 0, speedMul: 1, moving: true,
       wp: null, wpVersion: -1, repath: 0, crumbs: [], crumbDist: 0, slowAmt: 0, slowT: 0, rootT: 0, stunT: 0,
       vulnAmt: 0, vulnT: 0, curseT: 0, burnDps: 0, burnT: 0, poisonDps: 0, poisonT: 0, sabotageCd: 3 + this.rng() * 3,
       progress: 1e9, alive: true, bounty: bountyFor(this.round, type), lastHitBy: -1, hitFlash: 0, knock: 0,
@@ -565,6 +565,22 @@ export class Game {
       if (!r.alive) continue;
       // status effects
       r.hitFlash = Math.max(0, r.hitFlash - dt * 4);
+      // golems shrug off crowd control entirely
+      if (r.type.unstoppable) { r.slowT = 0; r.slowAmt = 0; r.stunT = 0; r.rootT = 0; r.knock = 0; }
+      // shamans mend everyone nearby once a second
+      if (r.type.healer) {
+        r.healT -= dt;
+        if (r.healT <= 0) {
+          r.healT = 1;
+          let healed = false;
+          for (const o of this.runners) {
+            if (!o.alive || o.hp >= o.maxHp || (o.x - r.x) ** 2 + (o.z - r.z) ** 2 > 3.5 * 3.5) continue;
+            o.hp = Math.min(o.maxHp, o.hp + o.maxHp * (o === r ? 0.01 : 0.025));
+            healed = true;
+          }
+          if (healed) this.emit({ type: 'heal', x: r.x, z: r.z, r: 3.5 });
+        }
+      }
       r.knock = Math.max(0, r.knock - dt);
       if (r.slowT > 0) { r.slowT -= dt; if (r.slowT <= 0) r.slowAmt = 0; }
       if (r.rootT > 0) r.rootT -= dt;
