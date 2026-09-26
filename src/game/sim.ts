@@ -228,6 +228,22 @@ export class Game {
     return s;
   }
 
+  /** Put a structure back exactly as saved (no checks, costs or events); call finishRestore() after. */
+  restoreStructure(id: StructureId, x: number, z: number): Structure {
+    const def = STRUCTURES[id];
+    const s = this.makeStructure(def, x, z);
+    for (const c of this.grid.cellsOf(x, z, def.size)) this.grid.occupant[c] = s.id;
+    this.structures.push(s);
+    this.structById.set(s.id, s);
+    return s;
+  }
+
+  finishRestore() {
+    this.grid.refresh();
+    this.recomputeLegs();
+    this.events.length = 0;
+  }
+
   private makeStructure(def: StructureDef, x: number, z: number): Structure {
     const cx = x + def.size / 2, cz = z + def.size / 2;
     const t = this.grid.terrain[idx(x, z)];

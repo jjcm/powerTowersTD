@@ -22,6 +22,7 @@ import { setWindTime, type Simplify } from './render/instanced';
 import { Atmosphere } from './render/atmosphere';
 import { ShoreLife } from './render/shore';
 import { Decor } from './render/decor';
+import { loadSave, writeSave, clearSave, restore, type SaveData } from './game/save';
 import { PartRig, partTemplate, PART_RIGS } from './render/rigs';
 import { Controller } from './input/controller';
 import { Hud, type AppHooks } from './ui/hud';
@@ -55,6 +56,8 @@ const tmpV = new THREE.Vector3();
 const drawSize = new THREE.Vector2();
 const hooks: AppHooks = {
   start: (d) => { audio.ensure(); void startGame(d); },
+  resume: () => { const d = loadSave(); if (d) { audio.ensure(); void startGame(d.difficulty, d); } },
+  savedRun: () => { const d = loadSave(); return d ? { round: d.round, difficulty: d.difficulty } : null; },
   restart: () => { if (session) void startGame(session.difficulty); },
   toTitle: () => { endSession(); hud.showTitle(false); },
   settings,
@@ -93,12 +96,15 @@ function loadSimplifier() {
 }
 
 let starting = false;
-async function startGame(difficulty: Difficulty) {
+/** Autosave bookkeeping for the current run. */
+let saveState = { round: -1, t: 15, cleared: false };
+async function startGame(difficulty: Difficulty, save?: SaveData) {
   if (starting) return;
   starting = true;
   endSession();
   const arrays = await loadTerrainArrays(assets, assets.maxAnisotropy);
-  const game = new Game(difficulty);
+  const game = save ? restore(save) : new Game(difficulty);
+  saveState = { round: game.round, t: 15, cleared: false };
   game.autoLink = settings.autoLink;
   const group = new THREE.Group();
   const damage = new GroundDamage(game.grid);
@@ -277,6 +283,12 @@ function tick(dt: number) {
   bars.end();
 
   world.updateLighting(g.env, dt);
+  // autosave at the start of every build phase and every 15 s while building; a finished run is wiped
+  if (g.outcome !== 'playing') { if (!saveState.cleared) { clearSave(); saveState.cleared = true; } }
+  else if (g.phase === 'build') {
+    saveState.t -= dt;
+    if (g.round !== saveState.round || saveState.t <= 0) { writeSave(g); saveState.round = g.round; saveState.t = 15; }
+  }
   if (s.atmos.group.visible) {
     s.atmos.update({
       dt, time, camera: world.camera, target: world.target, sunDir: world.sunDir, sunColor: world.sun.color,

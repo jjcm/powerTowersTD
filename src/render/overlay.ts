@@ -51,7 +51,8 @@ export class Overlay {
   }
 
   private ring(color: number, opacity: number) {
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 96), new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide }));
+    // drawn on top: on rolling ground a flat ring would dip under the terrain in places
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.965, 1, 96), new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
     m.rotation.x = -Math.PI / 2;
     m.visible = false;
     m.renderOrder = 4;

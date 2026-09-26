@@ -64,6 +64,10 @@ npm run build      # static build in dist/
   - The terrain's static noise fields are baked into textures, and adaptive resolution holds the frame rate.
 - **Settings:** ambient occlusion, foliage, tilt-shift, the atmosphere layer, arc shadows, adaptive resolution and the dynamic-light count can each be toggled in Menu → Settings for weaker GPUs.
 
+## Saving
+
+The run autosaves to the browser's localStorage at the start of every build phase, and every 15 seconds while you build (`src/game/save.ts`). The title screen then offers **Continue**. Mid-wave state isn't saved, so a refresh during a wave replays it from its build phase. Finishing a run clears the save.
+
 ## Controls
 
 `Q W E / A S D` command card (WC3 grid) · `1–4` build tabs · `R` research · `Space` send the wave (sending early pays gold) · `P` pause · `[` `]` speed · `Del` sell · `Esc` cancel/menu · arrow keys, screen edges or middle-drag to pan · right-drag or `,` `.` to rotate · mouse wheel to zoom · `Tab` toggles the route during waves (or hold `Alt`). Right-click a spell button to toggle autocast; left-click casts now. Click a runner to inspect it.

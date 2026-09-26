@@ -10,6 +10,9 @@ import type { Controller } from '../input/controller';
 
 export interface AppHooks {
   start(d: Difficulty): void;
+  /** Continue the saved run, if any. */
+  resume(): void;
+  savedRun(): { round: number; difficulty: Difficulty } | null;
   restart(): void;
   toTitle(): void;
   settings: { shadows: boolean; bloom: boolean; resolution: number; volume: number; edgeScroll: boolean; autoLink: boolean; showPath: boolean; foliage: boolean; arcShadows: boolean; manyLights: boolean; ao: boolean; tiltShift: boolean; atmosphere: boolean; adaptive: boolean };
@@ -86,6 +89,17 @@ export class Hud {
     play.onclick = () => this.app.start(chosen);
     const help = el('button', 'mbtn frame', 'How to Play');
     help.onclick = () => this.openHelp();
+    const saved = this.app.savedRun();
+    if (saved) {
+      const cont = el('button', 'mbtn frame primary', `Continue · Round ${Math.max(1, saved.round)} · ${DIFFICULTIES[saved.difficulty].name}`);
+      cont.onclick = () => this.app.resume();
+      (cont as HTMLButtonElement).disabled = loading;
+      if (loading) cont.style.opacity = '0.5';
+      this.refs.cont = cont;
+      play.classList.remove('primary');
+      play.textContent = 'New game';
+      actions.append(cont);
+    }
     actions.append(play, help);
     t.append(actions);
     const ld = el('div', 'loading', loading ? 'Summoning assets…' : '');
@@ -109,6 +123,7 @@ export class Hud {
       this.refs.loadBar.parentElement!.classList.add('hidden');
       (this.refs.play as HTMLButtonElement).disabled = false;
       this.refs.play.style.opacity = '1';
+      if (this.refs.cont) { (this.refs.cont as HTMLButtonElement).disabled = false; this.refs.cont.style.opacity = '1'; }
     }
   }
 
@@ -172,7 +187,12 @@ export class Hud {
     route.onmouseleave = () => this.hideTip();
     speed.append(route);
     wave.append(waveName, send, speed);
-    right.append(row, wave);
+    // what's coming: portraits of the next wave's runners, counts and ability badges
+    const preview = el('div', 'wave-preview frame interactive hidden');
+    preview.onmouseenter = () => this.showTip(this.waveTip(), 'top');
+    preview.onmouseleave = () => this.hideTip();
+    preview.onclick = (e) => { if ((e as PointerEvent).pointerType === 'touch' || !matchMedia('(hover: hover)').matches) { this.showTip(this.waveTip(), 'top'); setTimeout(() => this.hideTip(), 4500); } };
+    right.append(row, wave, preview);
     top.append(left, center, right);
     ui.append(top);
 
@@ -257,7 +277,7 @@ export class Hud {
       round: ui.querySelector('[data-k=round]')!, rname: research.querySelector('.rname')!, rprog: research.querySelector('.rprog')!,
       tod: env.querySelector('.tod')!, clock: env.querySelector('.clock')!, wimg: env.querySelector('.wimg')!, wname: env.querySelector('.wname')!,
       nimg: env.querySelector('.nimg')!, nt: env.querySelector('.nt')!, pw: gstats.querySelector('.pw span')!, mn: gstats.querySelector('.mn')!, mz: gstats.querySelector('.mz span')!,
-      waveName, send, route, sendT: send.querySelector('.t')!, sendL: send.querySelector('.lbl')!, speed, portrait, pname: pcol.querySelector('.pname')!, bars: pcol.querySelector('.bars')!,
+      waveName, send, route, preview, sendT: send.querySelector('.t')!, sendL: send.querySelector('.lbl')!, speed, portrait, pname: pcol.querySelector('.pname')!, bars: pcol.querySelector('.bars')!,
       tabs, grid, rinfo, hint: status.querySelector('.hint')!, card, cancel,
     });
     this.setSpeed(game.speed);
@@ -320,6 +340,7 @@ export class Hud {
     this.refs.sendL.textContent = g.round === 0 ? 'Begin round 1' : 'Send next wave';
     this.refs.sendT.textContent = isFinite(g.buildTimer) ? `${Math.ceil(g.buildTimer)}s` : '';
     this.refs.route.classList.toggle('on', this.ctrl.showRoute);
+    this.updatePreview();
     this.refs.cancel.classList.toggle('hidden', !(this.ctrl.touchUsed && this.ctrl.mode.kind !== 'idle'));
     // hint line
     this.refs.hint.innerHTML = this.hint();
@@ -393,7 +414,7 @@ export class Hud {
     this.refs.tabs.classList.toggle('hidden', !!s || c.mode.kind === 'link');
     if (s) {
       this.setImg(pimg, this.assets.portrait(s.def.model));
-      this.refs.pname.textContent = s.def.name;
+      this.refs.pname.innerHTML = s.def.attack ? `${s.def.name}<small>${s.kills} kills · ${fmt(s.damage)} dmg</small>` : s.def.name;
       lvl.textContent = s.def.id === 'hero_tower' ? `Lv ${s.heroLevel}` : s.def.maxLevel > 1 ? `Lv ${s.level}` : '';
       lvl.style.display = lvl.textContent ? '' : 'none';
       const b: string[] = [];
@@ -668,6 +689,24 @@ export class Hud {
 
   private gridTip(): Tip {
     return { title: 'Grid', body: '<p><span class="pw">Power</span>: total generation vs. what your towers are pulling right now.</p><p><span class="mn">Mana</span>: generation vs. what spell towers are drawing.</p><p>⤳ Maze length: how far runners must walk through all checkpoints. Longer is better.</p>' };
+  }
+
+  private previewKey = '';
+  private updatePreview() {
+    const g = this.game;
+    const show = g.phase === 'build' && g.outcome === 'playing';
+    this.refs.preview.classList.toggle('hidden', !show);
+    const key = `${g.round}|${g.difficulty}`;
+    if (!show || key === this.previewKey) return;
+    this.previewKey = key;
+    const wave = buildWave(g.round + 1, () => 0.37);
+    const badge = (t: (typeof RUNNERS)[keyof typeof RUNNERS]) =>
+      t.boss ? '👑' : t.saboteur ? '💥' : t.drain ? '⚡' : t.leech ? '🩸' : t.shield ? '🛡' : t.regen ? '✚' : t.flying ? '🪶' : '';
+    this.refs.preview.innerHTML = `<span class="lbl">Next</span>` + wave.groups.map((gr) => {
+      const t = RUNNERS[gr.type];
+      const b = badge(t);
+      return `<span class="chip" title="${t.name}"><img src="${this.assets.portrait(t.model) ?? ''}">${b ? `<i>${b}</i>` : ''}<b>${gr.count}</b></span>`;
+    }).join('');
   }
 
   private waveTip(): Tip {
