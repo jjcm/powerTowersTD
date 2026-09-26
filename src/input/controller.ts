@@ -30,6 +30,13 @@ export class Controller {
   mouseIn = false;
   edgeScroll = true;
   private middle: { x: number; y: number } | null = null;
+  private rotating: { x: number; moved: boolean } | null = null;
+  /** Keep the runners' route drawn during waves (Tab); Alt shows it while held. */
+  showRoute = false;
+  onRouteToggle: (on: boolean) => void = () => {};
+  private hits: THREE.Intersection[] = [];
+  private pickKey = '';
+  private pickCache: Structure | null = null;
   private abort = new AbortController();
   private ray = new THREE.Raycaster();
   private dirty = true;
@@ -66,6 +73,19 @@ export class Controller {
     // no browser autoscroll / paste-on-middle-click
     c.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); }, opt);
     c.addEventListener('mouseleave', () => { this.mouseIn = false; }, opt);
+    // right-drag orbits the camera (a plain right-click still cancels)
+    window.addEventListener('mousemove', (e) => {
+      const r = this.rotating;
+      if (!r || !(e.buttons & 2)) return;
+      const dx = e.clientX - r.x;
+      if (!r.moved && Math.abs(dx) < 4) return;
+      r.moved = true;
+      this.world.goalYaw -= dx * 0.0065;
+      this.world.yaw -= dx * 0.0065;
+      r.x = e.clientX;
+      this.world.canvas.style.cursor = 'ew-resize';
+    }, opt);
+    window.addEventListener('keyup', (e) => { if (e.key === 'Alt') e.preventDefault(); }, opt);
     c.addEventListener('mousedown', (e) => this.down(e), opt);
     window.addEventListener('mouseup', (e) => this.up(e), opt);
     c.addEventListener('contextmenu', (e) => e.preventDefault(), opt);
@@ -149,21 +169,48 @@ export class Controller {
   }
 
   private pickStructure(): Structure | null {
+    // cached until the ray or the board changes (the exact mesh test below isn't free)
+    const o = this.ray.ray.origin, d = this.ray.ray.direction;
+    const key = `${o.x.toFixed(3)},${o.y.toFixed(3)},${o.z.toFixed(3)},${d.x.toFixed(4)},${d.y.toFixed(4)},${d.z.toFixed(4)}|${this.game.grid.version}|${this.game.structures.length}`;
+    if (key === this.pickKey) return this.pickCache && this.game.structById.has(this.pickCache.id) ? this.pickCache : null;
+    this.pickKey = key;
+    this.pickCache = this.pickStructureUncached();
+    return this.pickCache;
+  }
+
+  private pickStructureUncached(): Structure | null {
     const box = new THREE.Box3();
-    let best: Structure | null = null, bd = Infinity;
     const hit = new THREE.Vector3();
+    const cands: { s: Structure; d: number }[] = [];
     for (const s of this.game.structures) {
       const v = this.sv.views.get(s.id);
       const h = s.def.id === 'wall' ? 1.4 : v ? v.height * 0.92 : 2;
       const half = s.def.size / 2 - 0.04;
       box.min.set(s.cx - half, s.y, s.cz - half);
       box.max.set(s.cx + half, s.y + h, s.cz + half);
-      if (this.ray.ray.intersectBox(box, hit)) {
-        const d = hit.distanceTo(this.ray.ray.origin);
-        if (d < bd) { bd = d; best = s; }
-      }
+      if (this.ray.ray.intersectBox(box, hit)) cands.push({ s, d: hit.distanceTo(this.ray.ray.origin) });
     }
-    return best;
+    if (!cands.length) return null;
+    cands.sort((a, b) => a.d - b.d);
+    // Bounding boxes are generous around a tower's silhouette, so a tall tower's empty corners
+    // would steal clicks from a pylon visible behind it: test the actual meshes, nearest first.
+    for (const c of cands.slice(0, 4)) {
+      if (c.s.def.id === 'wall') return c.s;
+      const v = this.sv.views.get(c.s.id);
+      if (!v) return c.s;
+      this.hits.length = 0;
+      this.ray.intersectObject(v.model, true, this.hits);
+      if (this.hits.length) return c.s;
+    }
+    // nothing solid under the cursor: whatever stands on the ground point, else the nearest box
+    const p = this.hoverPoint;
+    const cx = Math.floor(p.x), cz = Math.floor(p.z);
+    if (inBounds(cx, cz)) {
+      const occ = this.game.grid.occupant[idx(cx, cz)];
+      const s = occ >= 0 ? this.game.structById.get(occ) : undefined;
+      if (s) return s;
+    }
+    return cands[0].s;
   }
 
   /** Resolve what's under the cursor right now (also called from input handlers). */
@@ -187,7 +234,7 @@ export class Controller {
     this.mouseIn = true;
     this.refreshHover();
     if (e.button === 1) { e.preventDefault(); return; }
-    if (e.button === 2) { this.cancel(); return; }
+    if (e.button === 2) { this.rotating = { x: e.clientX, moved: false }; return; }
     if (e.button !== 0) return;
     const m = this.mode;
     if (m.kind === 'build') {
@@ -226,6 +273,12 @@ export class Controller {
 
   private up(e: MouseEvent) {
     if (e.button === 1) return;
+    if (e.button === 2) {
+      const r = this.rotating;
+      this.rotating = null;
+      if (r && !r.moved && e.target === this.world.canvas) this.cancel();
+      return;
+    }
     if (e.button !== 0) return;
     if (e.target === this.world.canvas) { this.mouse.set(e.clientX, e.clientY); this.refreshHover(); }
     const m = this.mode;
@@ -277,24 +330,41 @@ export class Controller {
     this.keys.add(k);
     if (k === 'escape') { if (!this.cancel()) this.onMenu(); e.preventDefault(); return; }
     if (e.metaKey || e.ctrlKey) return;
+    // Alt (hold) would otherwise focus the browser's menu bar on some platforms
+    if (k === 'alt') { e.preventDefault(); return; }
+    if (k === 'tab') { e.preventDefault(); if (!e.repeat) this.toggleRoute(); return; }
+    if (k === ',' || k === '<') { this.world.goalYaw += Math.PI / 4; return; }
+    if (k === '.' || k === '>') { this.world.goalYaw -= Math.PI / 4; return; }
     if (k === 'r' && !this.onHotkey('r')) { this.onToggleResearch(); return; }
     if (this.onHotkey(k)) e.preventDefault();
+  }
+
+  toggleRoute(on = !this.showRoute) {
+    this.showRoute = on;
+    this.onRouteToggle(on);
   }
 
   update(dt: number) {
     // camera pan
     const w = this.world;
     const speed = w.dist * 1.1 * dt;
-    if (this.keys.has('arrowleft')) w.goal.x -= speed;
-    if (this.keys.has('arrowright')) w.goal.x += speed;
-    if (this.keys.has('arrowup')) w.goal.z -= speed;
-    if (this.keys.has('arrowdown')) w.goal.z += speed;
-    if (this.edgeScroll && this.mouseIn && document.hasFocus()) {
+    let mx = 0, my = 0;   // screen-space intent: +x right, +y down
+    if (this.keys.has('arrowleft')) mx -= 1;
+    if (this.keys.has('arrowright')) mx += 1;
+    if (this.keys.has('arrowup')) my -= 1;
+    if (this.keys.has('arrowdown')) my += 1;
+    if (this.edgeScroll && this.mouseIn && document.hasFocus() && !this.rotating) {
       const m = 6;
-      if (this.mouse.x <= m) w.goal.x -= speed;
-      if (this.mouse.x >= window.innerWidth - m) w.goal.x += speed;
-      if (this.mouse.y <= m) w.goal.z -= speed;
-      if (this.mouse.y >= window.innerHeight - m) w.goal.z += speed;
+      if (this.mouse.x <= m) mx -= 1;
+      if (this.mouse.x >= window.innerWidth - m) mx += 1;
+      if (this.mouse.y <= m) my -= 1;
+      if (this.mouse.y >= window.innerHeight - m) my += 1;
+    }
+    if (mx || my) {
+      // screen right = (cos yaw, -sin yaw), screen down = (sin yaw, cos yaw) on the ground
+      const cy = Math.cos(w.yaw), sy = Math.sin(w.yaw);
+      w.goal.x += (mx * cy + my * sy) * speed;
+      w.goal.z += (-mx * sy + my * cy) * speed;
     }
 
     this.refreshHover();
@@ -315,14 +385,15 @@ export class Controller {
         let goldLeft = this.game.gold;
         this.preview = spots.map((s) => {
           const chk = this.game.canPlace(m.id, s.x, s.z, { ignoreGold: true, skipPath: true });
-          let ok = chk.ok && goldLeft >= def.cost;
-          let reason = !chk.ok ? chk.reason : goldLeft < def.cost ? 'Not enough gold' : undefined;
+          const cost = def.cost - (chk.credit ?? 0);   // building over walls credits them
+          let ok = chk.ok && goldLeft >= cost;
+          let reason = !chk.ok ? chk.reason : goldLeft < cost ? 'Not enough gold' : undefined;
           const cells = chk.ok ? chk.cells.filter((c) => this.game.grid.isWalkable(c)) : [];
           if (ok && cells.length) {
             const f = this.game.grid.computeFields([...blocked, ...cells]);
             if (!this.game.grid.legsConnected(f)) { ok = false; reason = 'Would block the path'; }
           }
-          if (ok) { goldLeft -= def.cost; blocked.push(...cells); }
+          if (ok) { goldLeft -= cost; blocked.push(...cells); }
           return { ...s, ok, reason };
         });
         this.previewBlocked = blocked;
@@ -345,7 +416,7 @@ export class Controller {
       this.overlay.showSelection(this.selected);
       this.overlay.showHover(this.hover && this.hover !== this.selected ? this.hover : null);
       this.overlay.updatePath();
-      this.overlay.setPathVisible(this.game.phase === 'build' || this.keys.has('alt'));
+      this.overlay.setPathVisible(this.game.phase === 'build' || this.keys.has('alt') || this.showRoute);
     }
     if (this.selected && !this.game.structById.has(this.selected.id)) this.select(null);
     if (this.selectedRunner) {
@@ -354,7 +425,7 @@ export class Controller {
       else this.overlay.showRunnerSelection(p.x, p.y, p.z, this.selectedRunner.type.scale);
     } else this.overlay.showRunnerSelection(0, 0, 0, 0);
     if (m.kind === 'link' && !this.game.structById.has(m.from.id)) this.setMode({ kind: 'idle' });
-    this.world.canvas.style.cursor = this.middle ? 'grabbing' : m.kind === 'link' ? 'crosshair' : m.kind === 'build' ? 'cell' : this.hover || this.hoverRunner ? 'pointer' : 'default';
+    this.world.canvas.style.cursor = this.middle ? 'grabbing' : this.rotating?.moved ? 'ew-resize' : m.kind === 'link' ? 'crosshair' : m.kind === 'build' ? 'cell' : this.hover || this.hoverRunner ? 'pointer' : 'default';
   }
 }
 

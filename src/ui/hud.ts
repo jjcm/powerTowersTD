@@ -161,6 +161,11 @@ export class Hud {
       b.onclick = () => this.setSpeed(v);
       speed.append(b);
     }
+    const route = el('button', 'frame route', 'Route');
+    route.onclick = () => this.ctrl.toggleRoute();
+    route.onmouseenter = () => this.showTip({ title: 'Show route', body: 'Keep the runners\' route drawn during waves. Hold <kbd>Alt</kbd> for a quick look.', hk: 'Tab' }, 'top');
+    route.onmouseleave = () => this.hideTip();
+    speed.append(route);
     wave.append(waveName, send, speed);
     right.append(row, wave);
     top.append(left, center, right);
@@ -215,7 +220,7 @@ export class Hud {
       round: ui.querySelector('[data-k=round]')!, rname: research.querySelector('.rname')!, rprog: research.querySelector('.rprog')!,
       tod: env.querySelector('.tod')!, clock: env.querySelector('.clock')!, wimg: env.querySelector('.wimg')!, wname: env.querySelector('.wname')!,
       nimg: env.querySelector('.nimg')!, nt: env.querySelector('.nt')!, pw: gstats.querySelector('.pw span')!, mn: gstats.querySelector('.mn')!, mz: gstats.querySelector('.mz span')!,
-      waveName, send, sendT: send.querySelector('.t')!, sendL: send.querySelector('.lbl')!, speed, portrait, pname: pcol.querySelector('.pname')!, bars: pcol.querySelector('.bars')!,
+      waveName, send, route, sendT: send.querySelector('.t')!, sendL: send.querySelector('.lbl')!, speed, portrait, pname: pcol.querySelector('.pname')!, bars: pcol.querySelector('.bars')!,
       tabs, grid, rinfo, hint: status.querySelector('.hint')!, card,
     });
     this.setSpeed(game.speed);
@@ -277,6 +282,7 @@ export class Hud {
     this.refs.send.classList.toggle('hidden', !canSend);
     this.refs.sendL.textContent = g.round === 0 ? 'Begin round 1' : 'Send next wave';
     this.refs.sendT.textContent = isFinite(g.buildTimer) ? `${Math.ceil(g.buildTimer)}s` : '';
+    this.refs.route.classList.toggle('on', this.ctrl.showRoute);
     // hint line
     this.refs.hint.innerHTML = this.hint();
     // card
@@ -857,7 +863,7 @@ export class Hud {
       <p>Rain helps water wheels and hurts furnaces. Storms throw lightning that charges your coils. Fog shortens range. Night shuts off solar and empowers mana.</p>
       <h3>Controls</h3>
       <p><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd> / <kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> command card · <kbd>1</kbd>-<kbd>4</kbd> build tabs · <kbd>R</kbd> research · <kbd>Space</kbd> send wave · <kbd>P</kbd> pause · <kbd>[</kbd> <kbd>]</kbd> speed · <kbd>Del</kbd> sell · <kbd>Esc</kbd> cancel<br>
-      Arrow keys, screen edges or middle-drag to pan · wheel to zoom · right-click cancels · hold <kbd>Alt</kbd> to see the route during a wave.</p>`);
+      Arrow keys, screen edges or middle-drag to pan · right-drag or <kbd>,</kbd> <kbd>.</kbd> to rotate · wheel to zoom · right-click cancels · <kbd>Tab</kbd> (or hold <kbd>Alt</kbd>) shows the route during a wave. Build on top of walls to replace them.</p>`);
     const back = el('button', 'mbtn frame', 'Close');
     back.style.marginTop = '14px';
     back.onclick = () => this.clearModal();

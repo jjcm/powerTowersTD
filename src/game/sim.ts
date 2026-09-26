@@ -24,7 +24,11 @@ function mulberry32(a: number) {
 
 export type Phase = 'build' | 'wave';
 
-export interface PlaceCheck { ok: boolean; reason?: string; cells: number[] }
+export interface PlaceCheck {
+  ok: boolean; reason?: string; cells: number[];
+  /** Walls under the footprint that the new structure replaces (their full value is credited). */
+  replaces?: Structure[]; credit?: number;
+}
 
 export class Game {
   grid = new Grid();
@@ -165,10 +169,19 @@ export class Game {
     if (!cells.length) return { ok: false, reason: 'Out of bounds', cells };
     if (!this.isUnlocked(def)) return { ok: false, reason: `Requires ${RESEARCH[def.requires!].name}`, cells };
     if (def.unique && this.structures.some((s) => s.def.id === id)) return { ok: false, reason: 'Only one allowed', cells };
-    if (!opts.ignoreGold && this.gold < def.cost + (opts.extraGold ?? 0)) return { ok: false, reason: 'Not enough gold', cells };
+    // anything but a wall can go on top of walls: they're already blocking, so the route can't change
+    const replaces: Structure[] = [];
+    for (const c of cells) {
+      const o = this.grid.occupant[c];
+      if (o < 0) continue;
+      const w = this.structById.get(o);
+      if (!w || w.def.id !== 'wall' || id === 'wall') return { ok: false, reason: 'Occupied', cells };
+      if (!replaces.includes(w)) replaces.push(w);
+    }
+    const credit = replaces.reduce((a, w) => a + totalCost(w.def, w.level), 0);
+    if (!opts.ignoreGold && this.gold + credit < def.cost + (opts.extraGold ?? 0)) return { ok: false, reason: 'Not enough gold', cells };
     let water = 0, plateau = 0;
     for (const c of cells) {
-      if (this.grid.occupant[c] >= 0) return { ok: false, reason: 'Occupied', cells };
       const t = this.grid.terrain[c];
       if (!this.grid.isBuildableTerrain(c, def.placement === 'water')) return { ok: false, reason: 'Can\'t build here', cells };
       if (t === Terrain.Water) water++;
@@ -193,14 +206,15 @@ export class Game {
         if (!isFinite(fields[Math.min(r.leg, fields.length - 1)][ci])) return { ok: false, reason: 'Would trap a runner', cells };
       }
     }
-    return { ok: true, cells };
+    return { ok: true, cells, replaces, credit };
   }
 
   place(id: StructureId, x: number, z: number, free = false): Structure | null {
     const chk = this.canPlace(id, x, z, { ignoreGold: free });
     if (!chk.ok) return null;
     const def = STRUCTURES[id];
-    if (!free) this.gold -= def.cost;
+    for (const w of chk.replaces ?? []) { this.removeStructure(w); this.emit({ type: 'sell', x: w.cx, z: w.cz, size: 1 }); }
+    if (!free) this.gold -= def.cost - (chk.credit ?? 0);
     const s = this.makeStructure(def, x, z);
     for (const c of chk.cells) this.grid.occupant[c] = s.id;
     this.structures.push(s);
@@ -249,10 +263,8 @@ export class Game {
     return Math.floor(invested * (this.phase === 'build' || s.builtDuringBuild && s.builtRound === this.round ? 1 : 0.75));
   }
 
-  sell(s: Structure) {
-    if (!this.structById.has(s.id)) return;
-    const value = this.sellValue(s);
-    this.gold += value;
+  /** Take a structure off the board (no refund, no fanfare). */
+  private removeStructure(s: Structure) {
     for (const l of [...s.links, ...s.inLinks]) this.unlink(l);
     for (let i = 0; i < N; i++) if (this.grid.occupant[i] === s.id) this.grid.occupant[i] = -1;
     this.structures.splice(this.structures.indexOf(s), 1);
@@ -260,6 +272,13 @@ export class Game {
     this.whelps = this.whelps.filter((w) => w.ownerId !== s.id);
     this.grid.refresh();
     this.recomputeLegs();
+  }
+
+  sell(s: Structure) {
+    if (!this.structById.has(s.id)) return;
+    const value = this.sellValue(s);
+    this.gold += value;
+    this.removeStructure(s);
     this.emit({ type: 'sell', x: s.cx, z: s.cz, size: s.def.size });
     this.emit({ type: 'text', x: s.cx, z: s.cz, text: `+${value}`, color: '#ffd24a' });
     this.emit({ type: 'sound', name: 'sell', x: s.cx, z: s.cz });

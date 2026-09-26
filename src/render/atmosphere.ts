@@ -96,7 +96,7 @@ export class Atmosphere {
           vec3 col = mix(uShade, uLit, lit) * (1.0 - core * 0.16);
           // keep the middle of the screen readable: the deck parts around what you're looking at
           vec2 sc = gl_FragCoord.xy / uRes - 0.5; sc.x *= uRes.x / uRes.y;
-          float clearing = mix(1.0, smoothstep(0.08, 0.5, length(sc)), 0.75);
+          float clearing = mix(1.0, smoothstep(0.22, 0.64, length(sc)), 0.92);   // clouds frame the view, never cover it
           float far = 1.0 - smoothstep(110.0, 190.0, distance(vWPos.xz, uCam.xz));
           gl_FragColor = vec4(col, d * uOpacity * clearing * far);
         }`,
@@ -272,11 +272,11 @@ export class Atmosphere {
 
     // ---- clouds
     this.cover = wmix(COVER);
-    const zoomed = smooth(CLOUD_Y + 10, CLOUD_Y + 26, camY);
+    const zoomed = smooth(CLOUD_Y + 17, CLOUD_Y + 33, camY);   // only near the widest zoom
     const cu = this.cu;
     cu.uTime.value = time;
     cu.uCover.value = this.cover;
-    cu.uOpacity.value = zoomed * (0.92 - night * 0.35) * (f.weather === 'fog' || f.prevWeather === 'fog' ? 0.75 : 1);
+    cu.uOpacity.value = zoomed * (0.72 - night * 0.3) * (f.weather === 'fog' || f.prevWeather === 'fog' ? 0.75 : 1);
     (cu.uSunDir.value as THREE.Vector3).copy(f.sunDir);
     const lit = cu.uLit.value as THREE.Color, shade = cu.uShade.value as THREE.Color;
     const over = 1 - smooth(0.32, 0.58, this.cover);   // 0 = fair weather, 1 = storm deck

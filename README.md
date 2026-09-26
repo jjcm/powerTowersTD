@@ -11,7 +11,7 @@ npm run build      # static build in dist/
 ## The rules
 
 - Runners leave the portal and must touch checkpoints **1 → 5** in order before they reach the castle gate. Each leak costs lives (a boss costs 5). Leaks are forgiven in round 1.
-- **Maze:** every structure blocks the path. Walls are 1×1 and cost 10 gold; drag to build a line. The game refuses any placement that would seal a leg or trap a runner. A dashed route preview updates live while you place.
+- **Maze:** every structure blocks the path. Walls are 1×1 and cost 10 gold; drag to build a line. Anything else can be built on top of walls: it replaces them, and their full value counts toward the cost. The game refuses any placement that would seal a leg or trap a runner. A dashed route preview updates live while you place.
 - **Power** (from the original): generators fill up with energy and push it along links, up to each structure's transfer rate and capacity, 4 times a second. Towers spend energy per attack for their *powered* effect, such as chain lightning, frost nova or burning bolts.
   - **Furnace**: burns nearby grass. The grass scorches, then regrows.
   - **Water Wheel**: must straddle the shoreline.
@@ -54,7 +54,7 @@ npm run build      # static build in dist/
 
 ## Controls
 
-`Q W E / A S D` command card (WC3 grid) · `1–4` build tabs · `R` research · `Space` send the wave (sending early pays gold) · `P` pause · `[` `]` speed · `Del` sell · `Esc` cancel/menu · arrow keys, screen edges or middle-drag to pan · mouse wheel to zoom · hold `Alt` to show the route during a wave. Right-click a spell button to toggle autocast; left-click casts now. Click a runner to inspect it.
+`Q W E / A S D` command card (WC3 grid) · `1–4` build tabs · `R` research · `Space` send the wave (sending early pays gold) · `P` pause · `[` `]` speed · `Del` sell · `Esc` cancel/menu · arrow keys, screen edges or middle-drag to pan · right-drag or `,` `.` to rotate · mouse wheel to zoom · `Tab` toggles the route during waves (or hold `Alt`). Right-click a spell button to toggle autocast; left-click casts now. Click a runner to inspect it.
 
 ## Code layout
 

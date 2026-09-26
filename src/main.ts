@@ -28,7 +28,7 @@ import { W, H, Terrain as TerrainType } from './game/grid';
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 
 const SETTINGS_KEY = 'powertowers.settings';
-const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, edgeScroll: true, autoLink: true, showPath: true, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true };
+const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, edgeScroll: true, autoLink: true, showPath: false, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true };
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}')); } catch { /* storage unavailable */ }
 
 const assets = new Assets();
@@ -126,6 +126,11 @@ async function startGame(difficulty: Difficulty) {
   ctrl.onToggleResearch = () => hud.toggleResearch();
   ctrl.onMenu = () => hud.openMenu();
   ctrl.onMessage = (t, k) => hud.message(t, k);
+  ctrl.showRoute = settings.showPath;
+  ctrl.onRouteToggle = (on) => {
+    settings.showPath = on;
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
+  };
 
   // open on the portal, then glide out to the whole battlefield
   world.target.set(game.map.spawn.x + 4, 0, game.map.spawn.z + 4);
@@ -154,6 +159,18 @@ function frame() {
   tick(Math.min(clock.getDelta(), 0.1));
 }
 
+/** Positional one-shot: quieter with distance from the view centre, panned by screen position. */
+function playAt(name: string, x: number | undefined, z: number | undefined, vol: number) {
+  let pan = 0;
+  if (x !== undefined && z !== undefined) {
+    const d = Math.hypot(x - world.target.x, z - world.target.z);
+    vol *= Math.max(0.15, 1 - d / 45) * Math.max(0.3, 1 - (world.dist - 20) / 80);
+    tmpV.set(x, 1, z).project(world.camera);
+    pan = tmpV.z < 1 ? tmpV.x * 0.8 : 0;
+  }
+  audio.play(name, vol, pan);
+}
+
 function tick(dt: number) {
   time += dt;
   const s = session;
@@ -165,20 +182,12 @@ function tick(dt: number) {
   for (const e of g.events) {
     s.fx.handle(e);
     switch (e.type) {
-      case 'death': s.rv.onDeath(e.runnerId); break;
+      case 'death': s.rv.onDeath(e.runnerId); playAt('death', e.x, e.z, 0.8); break;
       case 'leak': s.rv.onLeak(e.runnerId); world.shake = Math.min(1, world.shake + 0.4); break;
       case 'upgrade': s.sv.upgraded(e.structureId); break;
       case 'message': hud.message(e.text, e.kind); break;
       case 'text': hud.floatText(e.x, e.y ?? 2, e.z, e.text, e.color, e.big); break;
-      case 'sound': {
-        let vol = e.vol ?? 1;
-        if (e.x !== undefined && e.z !== undefined) {
-          const d = Math.hypot(e.x - world.target.x, e.z - world.target.z);
-          vol *= Math.max(0.15, 1 - d / 45) * Math.max(0.3, 1 - (world.dist - 20) / 80);
-        }
-        audio.play(e.name, vol);
-        break;
-      }
+      case 'sound': playAt(e.name, e.x, e.z, e.vol ?? 1); break;
     }
   }
   g.events.length = 0;
@@ -254,7 +263,8 @@ function tick(dt: number) {
   wu.uRain.value = s.fx.rainAmount;
 
   hud.update(dt);
-  audio.ambience(s.fx.rainAmount, world.nightness);
+  const w = g.env.weather;
+  audio.ambience(s.fx.rainAmount, world.nightness, w === 'storm' ? 2.2 : w === 'rain' ? 1.5 : w === 'cloudy' ? 1.2 : 1, dt);
   world.render();
 }
 
@@ -273,7 +283,7 @@ async function boot() {
   hud.setLoading(1, 1);
   // debug hooks for automated testing
   (window as unknown as Record<string, unknown>).__pt = {
-    get session() { return session; }, world, hooks, assets, THREE, hud,
+    get session() { return session; }, world, hooks, assets, THREE, hud, audio,
     /** Run the frame logic manually (for automated testing when rAF is throttled). */
     advance(seconds: number, step = 1 / 30) { for (let t = 0; t < seconds; t += step) tick(step); },
     /** Fast-forward the simulation (no rendering) including ground wear and effects bookkeeping. */

@@ -17,6 +17,7 @@ export class Overlay {
   private hoverRing: THREE.Mesh;
   private path: THREE.Mesh;
   private pathMat: THREE.MeshBasicMaterial;
+  private pathShade: THREE.Mesh;
   private pathKey = '';
   private linkLine: THREE.Mesh;
   private targetRings: THREE.Mesh[] = [];
@@ -33,12 +34,18 @@ export class Overlay {
     this.linkRing = this.ring(0x6ac8ff, 0.45);
     this.selRing = this.ring(0xffd24a, 0.9);
     this.hoverRing = this.ring(0xffffff, 0.35);
-    this.pathMat = new THREE.MeshBasicMaterial({ map: dashTexture(), color: 0xfff2c0, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending });
+    // The route is a UI overlay: drawn over grass and buildings (no depth test) with a dark
+    // underlay so it reads on bright meadow as well as on dirt.
+    this.pathMat = new THREE.MeshBasicMaterial({ map: dashTexture(), color: 0xfff2c0, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
     this.path = new THREE.Mesh(new THREE.BufferGeometry(), this.pathMat);
-    this.path.renderOrder = 4;
+    this.path.renderOrder = 38;           // above effects, under the cloud deck and health bars
     this.path.frustumCulled = false;
+    this.pathShade = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false, depthTest: false, side: THREE.DoubleSide }));
+    this.pathShade.renderOrder = 37;
+    this.pathShade.frustumCulled = false;
+    this.path.add(this.pathShade);
     const linkDash = dashTexture().clone(); linkDash.needsUpdate = true;
-    this.linkLine = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: linkDash, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.linkLine = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ map: linkDash, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
     this.linkLine.frustumCulled = false;
     this.group.add(this.cells, this.rangeRing, this.linkRing, this.selRing, this.hoverRing, this.path, this.linkLine);
   }
@@ -183,13 +190,14 @@ export class Overlay {
     } else pts = g.grid.routeFrom(g.grid.fields);
     const smooth = chaikin(pts, 2);
     const v3 = smooth.map((p) => new THREE.Vector3(p.x, this.heightAt(p.x, p.z) + 0.1, p.z));
-    this.flatRibbon(this.path, v3, 0.22);
+    this.flatRibbon(this.path, v3, 0.3);
+    this.flatRibbon(this.pathShade, v3, 0.5);
   }
 
   setPathVisible(v: boolean, preview = false) {
     this.path.visible = v;
     this.pathMat.color.set(preview ? 0x9fffb0 : 0xfff2c0);
-    this.pathMat.opacity = preview ? 0.75 : 0.45;
+    this.pathMat.opacity = preview ? 0.95 : 0.85;
   }
 
   update(dt: number) {

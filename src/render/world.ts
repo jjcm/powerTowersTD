@@ -281,11 +281,11 @@ export class World {
       this.camera.position.y += (Math.random() - 0.5) * s;
     }
     this.camera.lookAt(this.target.x, this.target.y + 0.5, this.target.z);
-    // stronger miniature look as you zoom out; scaled to the render resolution
+    // gentler, wider focus band as you zoom out (a far view should stay crisp); scaled to resolution
     const zoomT = THREE.MathUtils.clamp((this.dist - 12) / 52, 0, 1);
     const px = this.renderer.getPixelRatio() * (window.innerHeight / 1000);
-    this.grade.uniforms.uTiltAmount.value = (5 + zoomT * 3.5) * px;
-    this.grade.uniforms.uTiltBand.value = 0.17 - zoomT * 0.04;
+    this.grade.uniforms.uTiltAmount.value = (6 - zoomT * 2.5) * px;
+    this.grade.uniforms.uTiltBand.value = 0.17 + zoomT * 0.06;
     const dc = this.debugCam;
     if (dc) { this.camera.position.copy(dc.eye); this.camera.lookAt(dc.look.x, dc.look.y, dc.look.z); }
     const fov = dc?.fov ?? 36;
@@ -333,7 +333,8 @@ export class World {
     // fog weather keeps the distance haze moderate; the ground-hugging banks (atmosphere.ts) do the rest
     const fogBase = w === 'fog' ? 0.012 : w === 'rain' || w === 'storm' ? 0.011 : 0.0032;
     const prevFog = env.prevWeather === 'fog' ? 0.012 : env.prevWeather === 'rain' || env.prevWeather === 'storm' ? 0.011 : 0.0032;
-    this.fog.density = prevFog + (fogBase - prevFog) * blend;
+    // thin the haze as the camera pulls back, so zooming out doesn't fog the whole battlefield
+    this.fog.density = (prevFog + (fogBase - prevFog) * blend) * Math.min(1, 34 / Math.max(12, this.dist));
     this.fog.color.copy(k.fog).lerp(skyHor, 0.4).lerp(gray.clone().multiplyScalar(1 - night * 0.75), over * 0.6);
 
     this.bloom.strength = 0.5 + night * 0.45 + over * 0.1;
