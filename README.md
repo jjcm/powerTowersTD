@@ -64,6 +64,10 @@ npm run build      # static build in dist/
   - The terrain's static noise fields are baked into textures, and adaptive resolution holds the frame rate.
 - **Settings:** ambient occlusion, foliage, tilt-shift, the atmosphere layer, arc shadows, adaptive resolution and the dynamic-light count can each be toggled in Menu → Settings for weaker GPUs.
 
+## First game
+
+New players get a five-step guide (`src/ui/tutorial.ts`): walls, a tower, a furnace, links, then sending the wave. It never blocks play, highlights the relevant button, completes each step when you do the thing, and can be skipped. It shows once; to see it again, clear the `powertowers.tutorial` entry in localStorage.
+
 ## Saving
 
 The run autosaves to the browser's localStorage at the start of every build phase, and every 15 seconds while you build (`src/game/save.ts`). The title screen then offers **Continue**. Mid-wave state isn't saved, so a refresh during a wave replays it from its build phase. Finishing a run clears the save.

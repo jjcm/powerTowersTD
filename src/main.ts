@@ -23,6 +23,7 @@ import { Atmosphere } from './render/atmosphere';
 import { ShoreLife } from './render/shore';
 import { Decor } from './render/decor';
 import { loadSave, writeSave, clearSave, restore, type SaveData } from './game/save';
+import { tutorialSeen } from './ui/tutorial';
 import { PartRig, partTemplate, PART_RIGS } from './render/rigs';
 import { Controller } from './input/controller';
 import { Hud, type AppHooks } from './ui/hud';
@@ -165,7 +166,7 @@ async function startGame(difficulty: Difficulty, save?: SaveData) {
   world.goalDist = 52;
   session = { game, group, terrain, water, props, sv, rv, overlay, fx, bars, ctrl, difficulty, damage, foliage, lights, atmos, shore, decor };
   starting = false;
-  hud.attach(game, ctrl);
+  hud.attach(game, ctrl, { tutorial: !save && !tutorialSeen() });
   hud.message('Build your maze. Runners must pass checkpoints 1 → 5.', 'info');
 }
 

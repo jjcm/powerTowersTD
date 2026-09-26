@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Tutorial } from './tutorial';
 import type { Game } from '../game/sim';
 import type { Structure } from '../game/types';
 import { STRUCTURES, BUILD_TABS, SPELLS, M, levelCost, totalCost, type StructureDef, type StructureId } from '../game/data/structures';
@@ -26,6 +27,8 @@ interface Tip { title: string; cost?: number | string; body: string; hk?: string
 interface Btn {
   icon?: string; square?: boolean; label: string; cost?: number; disabled?: boolean; cant?: boolean; on?: boolean; lock?: boolean;
   up?: boolean; cd?: number; active?: boolean; tip: () => Tip; action?: () => void; alt?: () => void;
+  /** What the button is for (the tutorial highlights by it): a structure id, or 'connect'. */
+  sid?: string;
 }
 
 const GRID_KEYS = ['q', 'w', 'e', 'a', 's', 'd'];
@@ -128,7 +131,9 @@ export class Hud {
   }
 
   // ---------------------------------------------------------------- game ui
-  attach(game: Game, ctrl: Controller) {
+  private tutorial: Tutorial | null = null;
+
+  attach(game: Game, ctrl: Controller, opts: { tutorial?: boolean } = {}) {
     this.game = game;
     this.ctrl = ctrl;
     this.endShown = false;
@@ -282,6 +287,7 @@ export class Hud {
     });
     this.setSpeed(game.speed);
     this.cardKey = '';
+    this.tutorial = opts.tutorial ? new Tutorial(ui, game, ctrl, this.refs, (n) => this.app.sound(n)) : null;
   }
 
   setSpeed(v: number) {
@@ -341,6 +347,7 @@ export class Hud {
     this.refs.sendT.textContent = isFinite(g.buildTimer) ? `${Math.ceil(g.buildTimer)}s` : '';
     this.refs.route.classList.toggle('on', this.ctrl.showRoute);
     this.updatePreview();
+    this.tutorial?.update(dt);
     this.refs.cancel.classList.toggle('hidden', !(this.ctrl.touchUsed && this.ctrl.mode.kind !== 'idle'));
     // hint line
     this.refs.hint.innerHTML = this.hint();
@@ -437,8 +444,10 @@ export class Hud {
       const b = this.buttons[i];
       const e = cells[i] as HTMLElement;
       if (!b) { e.className = 'cbtn empty'; if (e.dataset.html) { e.dataset.html = ''; e.innerHTML = ''; } continue; }
-      const cls = 'cbtn' + (b.disabled ? ' disabled' : '') + (b.cant ? ' cant' : '') + (b.on ? ' on' : '') + (b.active ? ' active-mode' : '');
+      const cls = 'cbtn' + (b.disabled ? ' disabled' : '') + (b.cant ? ' cant' : '') + (b.on ? ' on' : '') + (b.active ? ' active-mode' : '')
+        + (e.classList.contains('tut-target') ? ' tut-target' : '');   // keep the tutorial's highlight
       if (e.className !== cls) e.className = cls;
+      if (e.dataset.sid !== (b.sid ?? '')) e.dataset.sid = b.sid ?? '';
       const coin = this.assets.ui('hud_gold') ?? '';
       const label = b.cost !== undefined ? `<img src="${coin}">${fmt(b.cost)}` : b.label;
       const html = `<div class="ic">${b.icon ? `<img class="${b.square ? 'square' : ''}" src="${b.icon}">` : ''}</div>${b.up ? '<i class="up"></i>' : ''}${b.lock ? '<span class="lock">🔒</span>' : ''}<span class="hk">${GRID_KEYS[i].toUpperCase()}</span><div class="label">${label}</div>${b.cd ? `<div class="cd" style="transform:scaleY(${b.cd})"></div>` : ''}`;
@@ -530,6 +539,7 @@ export class Hud {
         cant: unlocked && g.gold < def.cost, active: mode.kind === 'build' && mode.id === id,
         tip: () => this.buildTip(def),
         action: () => this.ctrl.setMode({ kind: 'build', id }),
+        sid: id,
       } as Btn;
     });
     while (out.length < 6) out.push(null);
@@ -589,7 +599,7 @@ export class Hud {
       const mode = c.mode;
       const hasTargets = g.structures.some((o) => o !== s && ((def.source && g.canLink(s, o).ok) || (o.def.source && g.canLink(o, s).ok)));
       out[3] = {
-        icon: this.assets.icon('connect'), square: true, label: 'Connect', disabled: !hasTargets,
+        icon: this.assets.icon('connect'), square: true, label: 'Connect', disabled: !hasTargets, sid: 'connect',
         active: mode.kind === 'link' && mode.op === 'connect',
         tip: () => ({ title: 'Connect', body: def.source ? `Send ${def.source === 'mana' ? 'mana' : 'power'} from this ${def.name} to another structure in range. ${s.links.length}/${def.maxLinks} links used.` : 'Draw power (or mana) into this structure from a generator or relay in range.', hk: 'A' }),
         action: () => c.setMode({ kind: 'link', op: 'connect', from: s }),
