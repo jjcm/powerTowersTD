@@ -50,7 +50,13 @@ npm run build      # static build in dist/
   - Fireflies come out at night, and pollen glints in the sun by day.
   - Now and then a flock of birds crosses below the clouds.
   - A tilt-shift focus band, faint film grain and a warm/cool split tone are folded into the final grade pass, so they cost no extra full-screen passes.
-- **Settings:** ambient occlusion, foliage, tilt-shift, the atmosphere layer, arc shadows and the dynamic-light count can each be toggled in Menu → Settings for weaker GPUs.
+- **Performance** (GPU time per frame at the default zoom dropped from 28 ms to 15 ms on an Apple GPU):
+  - Ambient occlusion runs at half resolution and skips the forest.
+  - The sun's shadow map is fitted to the view and texel-snapped. The arc-light cube shadow refreshes at 30 Hz.
+  - Distant forest chunks swap to trees simplified by meshoptimizer, and only trees near the play area cast shadows.
+  - Grass, litter and flowers are split into culled chunks that thin out with distance.
+  - The terrain's static noise fields are baked into textures, and adaptive resolution holds the frame rate.
+- **Settings:** ambient occlusion, foliage, tilt-shift, the atmosphere layer, arc shadows, adaptive resolution and the dynamic-light count can each be toggled in Menu → Settings for weaker GPUs.
 
 ## Controls
 

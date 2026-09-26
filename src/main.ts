@@ -18,7 +18,7 @@ import { GroundDamage } from './render/damage';
 import { Foliage } from './render/foliage';
 import { LightPool } from './render/lights';
 import { loadTerrainArrays } from './render/terrainTextures';
-import { setWindTime } from './render/instanced';
+import { setWindTime, type Simplify } from './render/instanced';
 import { Atmosphere } from './render/atmosphere';
 import { ShoreLife } from './render/shore';
 import { Controller } from './input/controller';
@@ -29,7 +29,7 @@ import { W, H, Terrain as TerrainType } from './game/grid';
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 
 const SETTINGS_KEY = 'powertowers.settings';
-const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, edgeScroll: true, autoLink: true, showPath: false, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true };
+const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, edgeScroll: true, autoLink: true, showPath: false, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true, adaptive: true };
 // phones start lighter (they can turn things back on in Settings)
 const touchDevice = matchMedia('(pointer: coarse)').matches;
 if (touchDevice) Object.assign(settings, { resolution: 1.25, ao: false, manyLights: false, arcShadows: false, edgeScroll: false });
@@ -40,7 +40,7 @@ for (const t of ['gesturestart', 'gesturechange']) document.addEventListener(t, 
 const assets = new Assets();
 const audio = new Audio();
 audio.muted = new URLSearchParams(location.search).has('mute');
-const world = new World(canvas, { shadows: settings.shadows, bloom: settings.bloom, pixelRatio: settings.resolution, ao: settings.ao, tiltShift: settings.tiltShift });
+const world = new World(canvas, { shadows: settings.shadows, bloom: settings.bloom, pixelRatio: settings.resolution, ao: settings.ao, tiltShift: settings.tiltShift, adaptive: settings.adaptive });
 assets.maxAnisotropy = world.renderer.capabilities.getMaxAnisotropy();
 
 interface Session {
@@ -58,7 +58,7 @@ const hooks: AppHooks = {
   settings,
   applySettings: () => {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
-    world.setQuality({ shadows: settings.shadows, bloom: settings.bloom, pixelRatio: settings.resolution, ao: settings.ao, tiltShift: settings.tiltShift });
+    world.setQuality({ shadows: settings.shadows, bloom: settings.bloom, pixelRatio: settings.resolution, ao: settings.ao, tiltShift: settings.tiltShift, adaptive: settings.adaptive });
     audio.setVolume(settings.volume);
     if (session) { session.ctrl.edgeScroll = settings.edgeScroll; session.game.autoLink = settings.autoLink; session.lights.shadowsEnabled = settings.shadows && settings.arcShadows; session.foliage.group.visible = settings.foliage; session.atmos.group.visible = settings.atmosphere; }
   },
@@ -81,6 +81,15 @@ function endSession() {
   session = null;
 }
 
+/** meshoptimizer's simplifier (for tree LODs), loaded on demand; undefined if unsupported. */
+let simplifier: Promise<Simplify | undefined> | null = null;
+function loadSimplifier() {
+  simplifier ??= import('meshoptimizer/simplifier')
+    .then(async ({ MeshoptSimplifier }) => { await MeshoptSimplifier.ready; return MeshoptSimplifier.simplify as Simplify; })
+    .catch(() => undefined);
+  return simplifier;
+}
+
 let starting = false;
 async function startGame(difficulty: Difficulty) {
   if (starting) return;
@@ -97,7 +106,7 @@ async function startGame(difficulty: Difficulty) {
   const heightAt = (x: number, z: number) => terrain.heightAt(x, z);
   const lights = new LightPool(settings.manyLights ? 14 : 6);
   lights.shadowsEnabled = settings.shadows && settings.arcShadows;
-  const props = new Props(game.grid, game.map, terrain, assets);
+  const props = new Props(game.grid, game.map, terrain, assets, await loadSimplifier());
   const sv = new StructureViews(game, assets, terrain);
   const rv = new RunnerViews(game, assets, heightAt);
   const overlay = new Overlay(game, assets, heightAt);
@@ -109,7 +118,7 @@ async function startGame(difficulty: Difficulty) {
   atmos.group.visible = settings.atmosphere;
   group.add(terrain.mesh, water.mesh, shore.group, foliage.group, props.group, sv.group, rv.group, overlay.group, fx.group, bars.mesh, lights.group, atmos.group);
   world.scene.add(group);
-  const aoStatic = [foliage.group, shore.group, fx.group, water.mesh, bars.mesh, overlay.group, world.sky, lights.group, ...atmos.aoExclude];
+  const aoStatic = [foliage.group, shore.group, ...props.forest, fx.group, water.mesh, bars.mesh, overlay.group, world.sky, lights.group, ...atmos.aoExclude];
   let aoFrame = -1, aoList: THREE.Object3D[] = aoStatic;
   world.aoExclude = aoStatic;
   world.aoExcludeFn = () => {
@@ -125,7 +134,7 @@ async function startGame(difficulty: Difficulty) {
   for (const f of props.flames) fx.emitters.push({ pos: f, kind: 'fire', rate: 22, acc: 0 });
   fx.emitters.push({ pos: props.portalCenter, kind: 'portal', rate: 40, acc: 0 });
   for (const c of props.crystals) fx.emitters.push({ pos: c.position.clone().add(new THREE.Vector3(0, 0.6, 0)), kind: 'crystal', rate: 6, acc: 0 });
-  fx.setViewportScale(window.innerHeight * Math.min(window.devicePixelRatio, settings.resolution), world.camera.fov);
+  fx.setViewportScale(window.innerHeight * world.renderer.getPixelRatio(), world.camera.fov);
 
   const ctrl = new Controller(game, world, sv, overlay, terrain);
   ctrl.rv = rv;
@@ -151,8 +160,9 @@ async function startGame(difficulty: Difficulty) {
   hud.message('Build your maze. Runners must pass checkpoints 1 → 5.', 'info');
 }
 
+world.onResize = () => { if (session) session.fx.setViewportScale(window.innerHeight * world.renderer.getPixelRatio(), world.camera.fov); };
 window.addEventListener('resize', () => {
-  if (session) session.fx.setViewportScale(window.innerHeight * Math.min(window.devicePixelRatio, settings.resolution), world.camera.fov);
+  if (session) session.fx.setViewportScale(window.innerHeight * world.renderer.getPixelRatio(), world.camera.fov);
 });
 window.addEventListener('pointerdown', () => audio.ensure(), { once: false });
 
@@ -164,7 +174,9 @@ let time = 0;
 
 function frame() {
   requestAnimationFrame(frame);
-  tick(Math.min(clock.getDelta(), 0.1));
+  const raw = clock.getDelta();
+  world.tickAdaptive(raw);
+  tick(Math.min(raw, 0.1));
 }
 
 /** Positional one-shot: quieter with distance from the view centre, panned by screen position. */
@@ -231,6 +243,8 @@ function tick(dt: number) {
   s.shore.update(time, wind);
   tu.uCover.value = s.atmos.cover;
   s.props.update(time, s.lights, world.nightness);
+  s.props.updateLod(world.camera.position);
+  s.foliage.updateLod(world.camera.position);
   s.sv.requestLights(s.lights, world.nightness);
 
   // bars

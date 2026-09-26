@@ -26,6 +26,7 @@ export class LightPool {
   private flashes: Flash[] = [];
   private shadowSmooth = new THREE.Vector3();
   private shadowOn = 0;
+  private shadowT = 0;
   shadowsEnabled = true;
 
   constructor(count = 14) {
@@ -82,11 +83,14 @@ export class LightPool {
       this.shadowLight.intensity = sh.intensity * 1.2 * this.shadowOn;
       this.shadowLight.distance = sh.distance * 1.3;
       this.shadowLight.shadow.camera.far = Math.max(4, sh.distance * 1.3);
-      this.shadowLight.shadow.needsUpdate = true;
+      // six cube faces are expensive: refresh at ~30 Hz (arcs re-jitter every 45-90 ms anyway)
+      this.shadowT -= dt;
+      if (this.shadowT <= 0) { this.shadowT = 1 / 30; this.shadowLight.shadow.needsUpdate = true; }
     } else {
       this.shadowOn = Math.max(0, this.shadowOn - dt * 4);
       this.shadowLight.intensity *= this.shadowOn;
-      if (this.shadowOn > 0) this.shadowLight.shadow.needsUpdate = true;
+      this.shadowT -= dt;
+      if (this.shadowOn > 0 && this.shadowT <= 0) { this.shadowT = 1 / 30; this.shadowLight.shadow.needsUpdate = true; }
     }
 
     let i = 0;

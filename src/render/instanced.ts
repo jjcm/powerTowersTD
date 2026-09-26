@@ -84,29 +84,80 @@ function windMaterial(src: THREE.MeshStandardMaterial): THREE.Material {
   return m;
 }
 
-/** Instanced models split into spatial chunks so the camera and shadow passes can cull them. */
+/**
+ * A copy of `template` whose meshes share the original vertex buffers but draw a simplified
+ * index list (meshoptimizer), for distant level-of-detail.
+ */
+export function simplifiedTemplate(template: THREE.Object3D, ratio: number, simplify: Simplify): THREE.Object3D {
+  const lod = template.clone();
+  lod.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const g = m.geometry;
+    const pos = g.getAttribute('position') as THREE.BufferAttribute;
+    const idx = g.index ? Uint32Array.from(g.index.array as ArrayLike<number>) : Uint32Array.from({ length: pos.count }, (_, i) => i);
+    const p = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) { p[i * 3] = pos.getX(i); p[i * 3 + 1] = pos.getY(i); p[i * 3 + 2] = pos.getZ(i); }
+    const target = Math.max(3, Math.floor((idx.length * ratio) / 3) * 3);
+    const [out] = simplify(idx, p, 3, target, 0.08, ['Permissive']);
+    const ng = new THREE.BufferGeometry();
+    for (const [k, a] of Object.entries(g.attributes)) ng.setAttribute(k, a);
+    ng.setIndex(new THREE.BufferAttribute(out, 1));
+    ng.boundingSphere = g.boundingSphere;
+    ng.boundingBox = g.boundingBox;
+    m.geometry = ng;
+  });
+  return lod;
+}
+export type Simplify = (indices: Uint32Array, positions: Float32Array, stride: number, target: number, error: number, flags?: ('LockBorder' | 'Sparse' | 'ErrorAbsolute' | 'Prune' | 'Regularize' | 'Permissive' | 'RegularizeLight')[]) => [Uint32Array, number];
+
+/**
+ * Instanced models split into spatial chunks so the camera and shadow passes can cull them.
+ * With a `lod` template each chunk also gets a cheap twin, swapped in by camera distance.
+ */
 export class ChunkedInstances {
   group = new THREE.Group();
-  private chunks = new Map<string, { model: InstancedModel; n: number }>();
-  constructor(private template: THREE.Object3D, private chunkSize: number, private perChunk: number, private opts: { castShadow?: boolean; receiveShadow?: boolean; wind?: boolean } = {}) {}
+  private chunks = new Map<string, { model: InstancedModel; lod?: InstancedModel; n: number; cx: number; cz: number }>();
+  constructor(private template: THREE.Object3D, private chunkSize: number, private perChunk: number,
+    private opts: { castShadow?: boolean; receiveShadow?: boolean; wind?: boolean; lod?: THREE.Object3D; lodDistance?: number } = {}) {}
 
   begin() { for (const c of this.chunks.values()) c.n = 0; }
 
   add(x: number, z: number, m: THREE.Matrix4, color?: THREE.Color) {
-    const key = `${Math.floor(x / this.chunkSize)},${Math.floor(z / this.chunkSize)}`;
+    const kx = Math.floor(x / this.chunkSize), kz = Math.floor(z / this.chunkSize);
+    const key = `${kx},${kz}`;
     let c = this.chunks.get(key);
     if (!c) {
-      c = { model: new InstancedModel(this.template, this.perChunk, { ...this.opts, cull: true }), n: 0 };
+      const o = { ...this.opts, cull: true };
+      c = { model: new InstancedModel(this.template, this.perChunk, o), n: 0, cx: (kx + 0.5) * this.chunkSize, cz: (kz + 0.5) * this.chunkSize };
+      if (this.opts.lod) { c.lod = new InstancedModel(this.opts.lod, this.perChunk, o); c.lod.group.visible = false; this.group.add(c.lod.group); }
       this.chunks.set(key, c);
       this.group.add(c.model.group);
     }
     if (c.n >= this.perChunk) return;
     c.model.setMatrix(c.n, m);
-    if (color) c.model.setColor(c.n, color);
+    c.lod?.setMatrix(c.n, m);
+    if (color) { c.model.setColor(c.n, color); c.lod?.setColor(c.n, color); }
     c.n++;
   }
 
   end() {
-    for (const c of this.chunks.values()) { c.model.setCount(c.n); c.model.commit(); }
+    for (const c of this.chunks.values()) { c.model.setCount(c.n); c.model.commit(); c.lod?.setCount(c.n); c.lod?.commit(); }
+  }
+
+  /** Chunk centres, for per-chunk decisions (e.g. which chunks cast shadows). */
+  eachChunk(fn: (cx: number, cz: number, groups: THREE.Group[]) => void) {
+    for (const c of this.chunks.values()) fn(c.cx, c.cz, c.lod ? [c.model.group, c.lod.group] : [c.model.group]);
+  }
+
+  /** Swap chunks to their LOD twin beyond `lodDistance` from the camera. */
+  updateLod(camera: THREE.Vector3) {
+    const d2 = (this.opts.lodDistance ?? 30) ** 2;
+    for (const c of this.chunks.values()) {
+      if (!c.lod) continue;
+      const far = (c.cx - camera.x) ** 2 + (c.cz - camera.z) ** 2 + camera.y * camera.y * 0.5 > d2;
+      c.model.group.visible = !far;
+      c.lod.group.visible = far;
+    }
   }
 }

@@ -12,7 +12,7 @@ import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
 import type { Environment } from '../game/env';
 import { W, H } from '../game/grid';
 
-export interface Quality { shadows: boolean; bloom: boolean; pixelRatio: number; ao?: boolean; tiltShift?: boolean }
+export interface Quality { shadows: boolean; bloom: boolean; pixelRatio: number; ao?: boolean; tiltShift?: boolean; adaptive?: boolean }
 
 /** Toggles object visibility between composer passes (e.g. keep foliage out of the AO pass). */
 class VisibilityPass extends Pass {
@@ -26,6 +26,7 @@ class VisibilityPass extends Pass {
 }
 
 const lerpC = (a: THREE.Color, b: THREE.Color, t: number) => a.clone().lerp(b, t);
+const ORIGIN = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 
 // Palette keyframes over the day (t = fraction of day)
 const KEYS: { t: number; sun: number; sunI: number; sky: number; hor: number; hemiS: number; hemiG: number; hemiI: number; fog: number }[] = [
@@ -91,6 +92,14 @@ export class World {
   /** Test-only camera override (set from `__pt.world.debugCam`): fixed eye / look-at / fov. */
   debugCam: { eye: THREE.Vector3Like; look: THREE.Vector3Like; fov?: number } | null = null;
   shake = 0;
+  private lightBasis = new THREE.Matrix4();
+  /** Adaptive resolution state; `onResize` lets size-dependent systems (particles) follow. */
+  private frameEma = 1 / 60;
+  private prTimer = 3;
+  private prCeil = Infinity;
+  private prCeilT = 0;
+  onResize: () => void = () => {};
+  private lightBasisInv = new THREE.Matrix4();
 
   constructor(public canvas: HTMLCanvasElement, public quality: Quality) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', preserveDrawingBuffer: true });
@@ -182,11 +191,15 @@ export class World {
         }`,
     }));
     // ambient occlusion: contact shadows where walls, towers and runners meet the ground
-    this.gtao = new GTAOPass(this.scene, this.camera, size.x, size.y);
+    // AO is soft by nature: its normal/depth pre-pass, sampling and denoise all run at half
+    // resolution (the final blend upsamples), which quarters the fill cost of the priciest pass
+    this.gtao = new GTAOPass(this.scene, this.camera, size.x / 2, size.y / 2);
+    const gtaoSetSize = this.gtao.setSize.bind(this.gtao);
+    this.gtao.setSize = (w: number, h: number) => gtaoSetSize(Math.max(1, Math.floor(w / 2)), Math.max(1, Math.floor(h / 2)));
     this.gtao.output = GTAOPass.OUTPUT.Default;
     this.gtao.blendIntensity = 0.85;
-    this.gtao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.5, thickness: 1.2, scale: 1.1, samples: 12 });
-    this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 16 });
+    this.gtao.updateGtaoMaterial({ radius: 0.9, distanceExponent: 1.5, thickness: 1.2, scale: 1.1, samples: 10 });
+    this.gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, rings: 2, samples: 10 });
     const hide = new VisibilityPass(() => this.aoExcludeFn(), false), show = new VisibilityPass(() => this.aoExcludeFn(), true);
     this.gtao.enabled = hide.enabled = show.enabled = quality.ao !== false;
     this.aoPasses = [hide, this.gtao, show];
@@ -241,6 +254,29 @@ export class World {
     this.updateCamera(0);
   }
 
+  /**
+   * Keep the frame rate up by trading resolution: step the pixel ratio down while frames run
+   * long, creep back up when there's headroom. A level that proved too heavy is remembered for
+   * a while so it doesn't oscillate.
+   */
+  tickAdaptive(dt: number) {
+    if (this.quality.adaptive === false || dt <= 0 || dt > 0.25 || document.hidden) return;
+    this.frameEma += (dt - this.frameEma) * 0.05;
+    this.prTimer -= dt;
+    this.prCeilT -= dt;
+    if (this.prCeilT <= 0) this.prCeil = Infinity;
+    if (this.prTimer > 0) return;
+    const max = Math.min(window.devicePixelRatio, this.quality.pixelRatio, this.prCeil), min = Math.max(0.6, Math.min(window.devicePixelRatio, this.quality.pixelRatio) * 0.55);
+    const cur = this.renderer.getPixelRatio();
+    let pr = cur;
+    if (this.frameEma > 1 / 48 && cur > min + 0.01) { pr = Math.max(min, cur - 0.15); this.prCeil = cur - 0.05; this.prCeilT = 30; }
+    else if (this.frameEma < 1 / 57 && cur < max - 0.01) pr = Math.min(max, cur + 0.1);
+    if (pr === cur) return;
+    this.prTimer = 2.5;
+    this.renderer.setPixelRatio(pr);
+    this.resize();
+  }
+
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.camera.aspect = w / h;
@@ -248,6 +284,7 @@ export class World {
     this.renderer.setSize(w, h, false);
     this.composer.setSize(w, h);
     this.renderer.getDrawingBufferSize(this.grade.uniforms.uRes.value as THREE.Vector2);
+    this.onResize();
   }
 
   setQuality(q: Quality) {
@@ -312,7 +349,20 @@ export class World {
     const sunDir = new THREE.Vector3(Math.cos(ang) * 0.8, Math.sin(ang) * 0.85 + 0.25, 0.45).normalize();
     const moonDir = new THREE.Vector3(-0.35, 0.85, 0.4).normalize();
     this.sunDir.copy(sunDir).lerp(moonDir, night).normalize();
-    const center = new THREE.Vector3(W / 2, 0, H / 2);
+    // the sun's shadow map follows the view: sized to the zoom (sharper up close, and casters far
+    // off-screen are culled), centred on the camera target snapped to whole shadow texels so
+    // panning doesn't make shadow edges shimmer
+    const ext = THREE.MathUtils.clamp(this.dist * 1.25, 18, 46);
+    const sc = this.sun.shadow.camera;
+    if (sc.right !== ext) { sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.updateProjectionMatrix(); }
+    const center = new THREE.Vector3(THREE.MathUtils.clamp(this.target.x, -6, W + 6), 0, THREE.MathUtils.clamp(this.target.z, -6, H + 6));
+    const texel = (2 * ext) / this.sun.shadow.mapSize.x;
+    this.lightBasis.lookAt(this.sunDir, ORIGIN, UP);
+    const inv = this.lightBasisInv.copy(this.lightBasis).invert();
+    center.applyMatrix4(inv);
+    center.x = Math.round(center.x / texel) * texel;
+    center.y = Math.round(center.y / texel) * texel;
+    center.applyMatrix4(this.lightBasis);
     this.sun.position.copy(center).addScaledVector(this.sunDir, 80);
     this.sun.target.position.copy(center);
     this.sun.color.copy(k.sun).lerp(gray, over * 0.6);

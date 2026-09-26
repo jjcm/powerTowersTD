@@ -25,6 +25,16 @@ function vnoise(x: number, z: number) {
   const a = hash(xi, zi), b = hash(xi + 1, zi), c = hash(xi, zi + 1), d = hash(xi + 1, zi + 1);
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
+// same value noise as the terrain shader's tnoise/tfbm, for baking static fields on the CPU
+function th(x: number, y: number) { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return s - Math.floor(s); }
+function tnoise(x: number, y: number) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+  const a = th(ix, iy), b = th(ix + 1, iy), c = th(ix, iy + 1), d = th(ix + 1, iy + 1);
+  return (a + (b - a) * ux) * (1 - uy) + (c + (d - c) * ux) * uy;
+}
+function tfbm(x: number, y: number) { return tnoise(x, y) * 0.5 + tnoise(x * 2.03 + 7.1, y * 2.03 + 7.1) * 0.25 + tnoise(x * 4.01 - 3.3, y * 4.01 - 3.3) * 0.125 + 0.0625; }
+
 export function fbm(x: number, z: number) {
   return vnoise(x, z) * 0.5 + vnoise(x * 2.03, z * 2.03) * 0.25 + vnoise(x * 4.1, z * 4.1) * 0.125;
 }
@@ -40,6 +50,9 @@ export class TerrainView {
   occ: THREE.DataTexture;
   /** Vertex-resolution height field (R32F) shared by grass, clutter and water shaders. */
   heightTex: THREE.DataTexture;
+  /** Static noise fields baked once (2 texels/unit) so the terrain shader doesn't evaluate ~20 noises per pixel. */
+  macroA: THREE.DataTexture;
+  macroB: THREE.DataTexture;
   private heights: Float32Array;
   vw = TW * RES + 1;
   vh = TH * RES + 1;
@@ -70,6 +83,29 @@ export class TerrainView {
     }
     geo.computeVertexNormals();
 
+    // A: forest/macro (0.075), lush (0.045), clover/moss (0.06), wildflowers (0.038)
+    // B: dry grass (0.05), warm/cool hue drift (0.02), anti-tiling offset selector (0.09)
+    const MW = TW * 2, MH = TH * 2;
+    const ma = new Uint8Array(MW * MH * 4), mb = new Uint8Array(MW * MH * 4);
+    for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) {
+      const x = (i + 0.5) / 2 - BORDER, z = (j + 0.5) / 2 - BORDER, k = (j * MW + i) * 4;
+      ma[k] = tfbm(x * 0.075, z * 0.075) * 255;
+      ma[k + 1] = tfbm(x * 0.045 + 11.3, z * 0.045 + 4.1) * 255;
+      ma[k + 2] = tfbm(x * 0.06 - 4.7, z * 0.06 - 9.2) * 255;
+      ma[k + 3] = tfbm(x * 0.038 + 27.1, z * 0.038 - 3.3) * 255;
+      mb[k] = tfbm(x * 0.05 - 17, z * 0.05 + 21) * 255;
+      mb[k + 1] = tfbm(x * 0.02 + 40, z * 0.02 + 13) * 255;
+      mb[k + 2] = tnoise(x * 0.09 + 3.1, z * 0.09 + 7.7) * 255;
+      mb[k + 3] = 255;
+    }
+    const macro = (d: Uint8Array) => {
+      const t = new THREE.DataTexture(d, MW, MH, THREE.RGBAFormat);
+      t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true;
+      return t;
+    };
+    this.macroA = macro(ma);
+    this.macroB = macro(mb);
+
     this.heightTex = new THREE.DataTexture(this.heights, this.vw, this.vh, THREE.RedFormat, THREE.FloatType);
     this.heightTex.magFilter = THREE.LinearFilter; this.heightTex.minFilter = THREE.LinearFilter;
     this.heightTex.wrapS = this.heightTex.wrapT = THREE.ClampToEdgeWrapping;
@@ -90,6 +126,7 @@ export class TerrainView {
       Object.assign(shader.uniforms, {
         tColors: { value: arrays.colors }, tData: { value: arrays.data },
         tSplat1: { value: this.splat1 }, tSplat2: { value: this.splat2 }, tDamage: { value: damage.tex }, tOcc: { value: this.occ },
+        tMacroA: { value: this.macroA }, tMacroB: { value: this.macroB },
         uTerrainSize: { value: new THREE.Vector2(TW, TH) }, uBorder: { value: BORDER }, uPlay: { value: new THREE.Vector2(W, H) },
         ...u,
       });
@@ -272,7 +309,7 @@ const TERRAIN_COMMON = /* glsl */`
   varying vec3 vWPos; varying vec3 vWNormal;
   uniform highp sampler2DArray tColors;
   uniform highp sampler2DArray tData;
-  uniform sampler2D tSplat1, tSplat2, tDamage, tOcc;
+  uniform sampler2D tSplat1, tSplat2, tDamage, tOcc, tMacroA, tMacroB;
   uniform vec2 uTerrainSize; uniform float uBorder; uniform vec2 uPlay;
   uniform float uGridAlpha; uniform vec2 uCursor; uniform float uTime; uniform float uWetness; uniform float uCloud; uniform float uCover; uniform float uSun;
   float th(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -291,18 +328,19 @@ const TERRAIN_ALBEDO = /* glsl */`
   vec2 duv = vWPos.xz / uPlay;
   bool inPlay = duv.x > 0.0 && duv.y > 0.0 && duv.x < 1.0 && duv.y < 1.0;
   terrDmg = inPlay ? texture(tDamage, duv) : vec4(0.0, 0.0, 0.0, 0.5);
-  float nzL = tfbm(vWPos.xz * 0.075);
+  vec4 macA = texture(tMacroA, suv), macB = texture(tMacroB, suv);
+  float nzL = macA.r;
   float nzS = tnoise(vWPos.xz * 0.9);
 
   float w[NL];
   for (int i = 0; i < NL; i++) w[i] = 0.0;
   // the meadow: five grass types woven together by large drifting patches
   w[0] = 1.0;
-  float nA = tfbm(vWPos.xz * 0.045 + vec2(11.3, 4.1)), nB = tfbm(vWPos.xz * 0.06 - vec2(4.7, 9.2)), nC = tfbm(vWPos.xz * 0.038 + vec2(27.1, -3.3));
+  float nA = macA.g, nB = macA.b, nC = macA.a;
   paintL(w, 9, smoothstep(0.48, 0.64, nA + (nzS - 0.5) * 0.06));                     // lush
   paintL(w, 11, smoothstep(0.6, 0.72, nB + (nzS - 0.5) * 0.06) * 0.7);               // clover
   paintL(w, 13, smoothstep(0.52, 0.66, nC + (nzS - 0.5) * 0.05) * 0.85);             // wildflowers
-  float dryN = tfbm(vWPos.xz * 0.05 + vec2(-17.0, 21.0)) + clamp(vWPos.y * 0.12, -0.05, 0.16);
+  float dryN = macB.r + clamp(vWPos.y * 0.12, -0.05, 0.16);
   paintL(w, 10, smoothstep(0.64, 0.78, dryN) * 0.55);                                 // sun-dried, likes high ground
   float forestAmt = clamp(smoothstep(0.4, 0.62, nzL + (nzS - 0.5) * 0.08) + sp2.b, 0.0, 1.0);
   paintL(w, 1, forestAmt);
@@ -324,7 +362,7 @@ const TERRAIN_ALBEDO = /* glsl */`
   // anti-tiling (after iq's "texture repetition" #3): a slowly varying noise picks one of
   // eight random tile offsets; neighbouring offsets cross-fade, so no two stretches of ground
   // repeat even though every layer tiles every 4 units
-  float vk = tnoise(vWPos.xz * 0.09 + vec2(3.1, 7.7)) * 8.0;
+  float vk = macB.b * 8.0;
   float vi = floor(vk), vfr = fract(vk);
   vec2 offA = sin(vec2(3.0, 7.0) * vi) * 7.31;
   vec2 offB = sin(vec2(3.0, 7.0) * (vi + 1.0)) * 7.31;
@@ -355,13 +393,16 @@ const TERRAIN_ALBEDO = /* glsl */`
   for (int i = 0; i < NL; i++) {
     if (b[i] > 0.001) {
       float li = float(i);
-      vec3 cA = textureGrad(tColors, vec3(puv + offA, li), tdx, tdy).rgb;
-      vec4 dA = textureGrad(tData, vec3(puv + offA, li), tdx, tdy);
-      if (vmix > 0.001) {
-        vec3 cB = textureGrad(tColors, vec3(puv + offB, li), tdx, tdy).rgb;
-        vec4 dB = textureGrad(tData, vec3(puv + offB, li), tdx, tdy);
+      // dominant offset first; the second fetch only where the two actually cross-fade
+      bool bDom = vmix > 0.5;
+      vec3 cA = textureGrad(tColors, vec3(puv + (bDom ? offB : offA), li), tdx, tdy).rgb;
+      vec4 dA = textureGrad(tData, vec3(puv + (bDom ? offB : offA), li), tdx, tdy);
+      float wO = bDom ? 1.0 - vmix : vmix;
+      if (wO > 0.001) {
+        vec3 cB = textureGrad(tColors, vec3(puv + (bDom ? offA : offB), li), tdx, tdy).rgb;
+        vec4 dB = textureGrad(tData, vec3(puv + (bDom ? offA : offB), li), tdx, tdy);
         // bias the seam toward whichever sample is taller, so it follows the texture's shapes
-        float m = clamp(vmix + (dB.a - dA.a) * 0.6, 0.0, 1.0);
+        float m = clamp(wO + (dB.a - dA.a) * 0.6, 0.0, 1.0);
         cA = mix(cA, cB, m); dA = mix(dA, dB, m);
       }
       col += cA * b[i];
@@ -370,7 +411,7 @@ const TERRAIN_ALBEDO = /* glsl */`
   }
   // macro variation so the meadow never looks tiled
   float macro = mix(0.84, 1.12, nzL) * mix(0.94, 1.05, nzS);
-  float hue = tfbm(vWPos.xz * 0.02 + vec2(40.0, 13.0)) - 0.5;          // warm/cool drift over ~50 units
+  float hue = macB.g - 0.5;          // warm/cool drift over ~50 units
   col *= mix(vec3(1.0), vec3(macro * (1.0 + hue * 0.12), macro * 1.02, macro * (0.96 - hue * 0.14)), 1.0 - b[5] - b[8]);
   col = mix(col, col * vec3(0.9, 0.72, 1.18) + vec3(0.05, 0.0, 0.1), sp1.g);
   // battle scars

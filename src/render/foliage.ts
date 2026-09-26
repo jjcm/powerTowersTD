@@ -40,11 +40,18 @@ const FOLIAGE_COMMON = /* glsl */`
   float craterDepth(vec4 dm) { return dm.b * 0.26 + dm.r * 0.035; }
 `;
 
+const CHUNK = 12;
+
+interface FoliageChunk { mesh: THREE.InstancedMesh; full: number; center: THREE.Vector3 }
+
 export class Foliage {
   group = new THREE.Group();
   private uniforms: Record<string, THREE.IUniform>;
+  private chunks: FoliageChunk[] = [];
+  private terrain: TerrainView;
 
   constructor(grid: Grid, terrain: TerrainView, damage: GroundDamage, assets: Assets) {
+    this.terrain = terrain;
     this.uniforms = {
       tHeight: { value: terrain.heightTex }, tDamage: { value: damage.tex }, tOcc: { value: terrain.occ }, tSplat2: { value: terrain.splat2 },
       uHeightSize: { value: new THREE.Vector2(terrain.vw, terrain.vh) }, uPlay: { value: new THREE.Vector2(W, H) },
@@ -60,6 +67,57 @@ export class Foliage {
   update(dt: number, wind: number) {
     this.uniforms.uTime.value += dt;
     this.uniforms.uWind.value += (wind - this.uniforms.uWind.value) * Math.min(1, dt);
+  }
+
+  /** Thin distant chunks: instances are shuffled per chunk, so drawing fewer is a random subset. */
+  updateLod(camera: THREE.Vector3) {
+    for (const c of this.chunks) {
+      const d = camera.distanceTo(c.center);
+      const k = THREE.MathUtils.clamp(1.4 - d / 60, 0.3, 1);
+      c.mesh.count = Math.max(1, Math.round(c.full * k));
+    }
+  }
+
+  /**
+   * Split instances into CHUNK-sized InstancedMeshes that the camera can frustum-cull. The
+   * shaders lift instances onto the terrain, so each chunk's bounding sphere is built from the
+   * real ground heights. `perInstance` attributes are split alongside.
+   */
+  private chunked(geo: THREE.BufferGeometry, mat: THREE.Material, mats: THREE.Matrix4[], name: string, perInstance: Record<string, number[]> = {}, lift = 1.2) {
+    const out = new THREE.Group();
+    const buckets = new Map<string, number[]>();
+    const p = new THREE.Vector3();
+    mats.forEach((m, i) => {
+      p.setFromMatrixPosition(m);
+      const key = `${Math.floor(p.x / CHUNK)},${Math.floor(p.z / CHUNK)}`;
+      let b = buckets.get(key);
+      if (!b) { b = []; buckets.set(key, b); }
+      b.push(i);
+    });
+    const r = rng(name.length * 131 + mats.length);
+    for (const [key, list] of buckets) {
+      for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+      const g = geo.clone();
+      for (const [attr, data] of Object.entries(perInstance)) g.setAttribute(attr, new THREE.InstancedBufferAttribute(new Float32Array(list.map((i) => data[i])), 1));
+      const mesh = new THREE.InstancedMesh(g, mat, list.length);
+      list.forEach((src, i) => mesh.setMatrixAt(i, mats[src]));
+      const [kx, kz] = key.split(',').map(Number);
+      const cx = (kx + 0.5) * CHUNK, cz = (kz + 0.5) * CHUNK;
+      let lo = Infinity, hi = -Infinity;
+      for (let z = 0; z <= 4; z++) for (let x = 0; x <= 4; x++) {
+        const h = this.terrain.heightAt(kx * CHUNK + (x / 4) * CHUNK, kz * CHUNK + (z / 4) * CHUNK);
+        lo = Math.min(lo, h); hi = Math.max(hi, h);
+      }
+      const center = new THREE.Vector3(cx, (lo + hi) / 2 + lift / 2, cz);
+      mesh.boundingSphere = new THREE.Sphere(center, Math.hypot(CHUNK * 0.72, (hi - lo) / 2 + lift));
+      mesh.frustumCulled = true;
+      mesh.receiveShadow = true;
+      mesh.castShadow = false;
+      mesh.name = name;
+      out.add(mesh);
+      this.chunks.push({ mesh, full: list.length, center });
+    }
+    return out;
   }
 
   /** Is this spot meadow (not water, sand, cobble, rock...)? */
@@ -175,13 +233,7 @@ export class Foliage {
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);');
     };
     mat.customProgramCacheKey = () => 'grass-blades';
-    const mesh = new THREE.InstancedMesh(geo, mat, mats.length);
-    mats.forEach((m, i) => mesh.setMatrixAt(i, m));
-    mesh.frustumCulled = false;
-    mesh.receiveShadow = true;
-    mesh.castShadow = false;
-    mesh.name = 'grass';
-    return mesh;
+    return this.chunked(geo, mat, mats, 'grass');
   }
 
   // ---------------------------------------------------------------- flat litter
@@ -251,8 +303,6 @@ export class Foliage {
   }
 
   private atlasMesh(geo: THREE.BufferGeometry, atlas: THREE.Texture, mats: THREE.Matrix4[], cells: number[], flat: boolean) {
-    geo = geo.clone();
-    geo.setAttribute('aCell', new THREE.InstancedBufferAttribute(new Float32Array(cells), 1));
     const mat = new THREE.MeshStandardMaterial({ map: atlas, alphaTest: 0.45, alphaToCoverage: true, side: THREE.DoubleSide, roughness: flat ? 0.85 : 0.7 });
     const U = this.uniforms;
     mat.onBeforeCompile = (shader) => {
@@ -293,13 +343,7 @@ export class Foliage {
         .replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\nnormal = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);');
     };
     mat.customProgramCacheKey = () => (flat ? 'litter' : 'flowers');
-    const mesh = new THREE.InstancedMesh(geo, mat, mats.length);
-    mats.forEach((m, i) => mesh.setMatrixAt(i, m));
-    mesh.frustumCulled = false;
-    mesh.receiveShadow = true;
-    mesh.castShadow = false;
-    mesh.name = flat ? 'litter' : 'flowers';
-    return mesh;
+    return this.chunked(geo, mat, mats, flat ? 'litter' : 'flowers', { aCell: cells }, flat ? 0.3 : 0.9);
   }
 }
 

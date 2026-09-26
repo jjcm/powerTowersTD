@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { Grid, Terrain as T, W, H, idx, inBounds } from '../game/grid';
 import type { MapInfo } from '../game/map';
 import type { Assets } from './assets';
-import { ChunkedInstances } from './instanced';
+import { ChunkedInstances, simplifiedTemplate, type Simplify } from './instanced';
 import type { LightPool } from './lights';
 import { BORDER, fbm, type TerrainView } from './terrain';
 
@@ -26,7 +26,11 @@ export class Props {
   /** Light sources handed to the dynamic light pool every frame. */
   lightSources: { pos: THREE.Vector3; color: THREE.Color; intensity: number; distance: number; flicker: number }[] = [];
 
-  constructor(grid: Grid, map: MapInfo, terrain: TerrainView, assets: Assets) {
+  /** Tree chunks (kept out of the AO pre-pass) and their camera-distance LOD. */
+  forest: THREE.Object3D[] = [];
+  private forestChunks: ChunkedInstances[] = [];
+
+  constructor(grid: Grid, map: MapInfo, terrain: TerrainView, assets: Assets, simplify?: Simplify) {
     const r = rand(4242);
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
     const up = new THREE.Vector3(0, 1, 0);
@@ -49,8 +53,15 @@ export class Props {
       }
       treeSpots.push({ x: jx, z: jz, sc: 0.75 + r() * 0.55 });
     }
-    const pine = new ChunkedInstances(assets.get('pine_tree').root, 12, 200, { wind: true });
-    const fir = new ChunkedInstances(assets.get('fir_tree').root, 12, 200, { wind: true });
+    // ~2800 trees: far chunks switch to a 20% simplified twin, and only trees near the play
+    // area cast sun shadows (under the far canopy nobody can tell)
+    const treeOpts = (id: string) => {
+      const root = assets.get(id).root;
+      const procedural = assets.get(id).procedural;
+      return { wind: true, lod: simplify && !procedural ? simplifiedTemplate(root, 0.2, simplify) : undefined, lodDistance: 34 };
+    };
+    const pine = new ChunkedInstances(assets.get('pine_tree').root, 12, 200, treeOpts('pine_tree'));
+    const fir = new ChunkedInstances(assets.get('fir_tree').root, 12, 200, treeOpts('fir_tree'));
     pine.begin(); fir.begin();
     const tint = new THREE.Color();
     for (const t of treeSpots) {
@@ -65,6 +76,12 @@ export class Props {
     }
     pine.end(); fir.end();
     this.group.add(pine.group, fir.group);
+    this.forest = [pine.group, fir.group];
+    this.forestChunks = [pine, fir];
+    for (const f of this.forestChunks) f.eachChunk((cx, cz, groups) => {
+      const out = Math.hypot(Math.max(-cx, cx - W, 0), Math.max(-cz, cz - H, 0));
+      if (out > 10) for (const g of groups) g.traverse((o) => { o.castShadow = false; });
+    });
 
     // ---------------- rocks
     const rockCells: number[] = [];
@@ -224,6 +241,8 @@ export class Props {
   }
 
   private baseY: number[] = [];
+  updateLod(camera: THREE.Vector3) { for (const f of this.forestChunks) f.updateLod(camera); }
+
   update(t: number, lights: LightPool, nightness: number) {
     this.checkpointMarkers.forEach((m, i) => { this.baseY[i] ??= m.position.y; m.position.y = this.baseY[i] + Math.sin(t * 2 + i) * 0.12; });
     for (const mat of this.runeMats) mat.color.setScalar(0.85 + Math.sin(t * 2.2) * 0.15);

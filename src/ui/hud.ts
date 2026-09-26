@@ -12,7 +12,7 @@ export interface AppHooks {
   start(d: Difficulty): void;
   restart(): void;
   toTitle(): void;
-  settings: { shadows: boolean; bloom: boolean; resolution: number; volume: number; edgeScroll: boolean; autoLink: boolean; showPath: boolean; foliage: boolean; arcShadows: boolean; manyLights: boolean; ao: boolean; tiltShift: boolean; atmosphere: boolean };
+  settings: { shadows: boolean; bloom: boolean; resolution: number; volume: number; edgeScroll: boolean; autoLink: boolean; showPath: boolean; foliage: boolean; arcShadows: boolean; manyLights: boolean; ao: boolean; tiltShift: boolean; atmosphere: boolean; adaptive: boolean };
   applySettings(): void;
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean };
   /** Interface sound (click, error). */
@@ -856,7 +856,7 @@ export class Hud {
     box.append(el('h2', '', 'Settings'));
     const grid = el('div', 'settings');
     const row = (label: string, input: HTMLElement) => { grid.append(el('span', '', label), input); };
-    const check = (key: 'shadows' | 'bloom' | 'edgeScroll' | 'autoLink' | 'showPath' | 'foliage' | 'arcShadows' | 'manyLights' | 'ao' | 'tiltShift' | 'atmosphere') => {
+    const check = (key: 'shadows' | 'bloom' | 'edgeScroll' | 'autoLink' | 'showPath' | 'foliage' | 'arcShadows' | 'manyLights' | 'ao' | 'tiltShift' | 'atmosphere' | 'adaptive') => {
       const i = el('input') as HTMLInputElement;
       i.type = 'checkbox'; i.checked = s[key];
       i.onchange = () => { s[key] = i.checked; this.app.applySettings(); };
@@ -877,6 +877,7 @@ export class Hud {
     row('Power-arc shadows', check('arcShadows'));
     row('Many dynamic lights (next game)', check('manyLights'));
     row('Resolution scale', range('resolution', 0.5, 2, 0.25));
+    row('Adaptive resolution (holds the frame rate)', check('adaptive'));
     row('Volume', range('volume', 0, 1, 0.05));
     row('Edge scrolling', check('edgeScroll'));
     row('Auto-link new structures', check('autoLink'));
