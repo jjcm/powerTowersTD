@@ -153,6 +153,8 @@ export const TEXTURES = [
   { id: 'grass_dry', prompt: `sun-dried meadow grass, golden and pale straw-yellow blades mixed with olive green, a few seed heads, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
   { id: 'grass_clover', prompt: `dense carpet of bright green clover leaves and short grass with tiny white and pink clover flowers, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
   { id: 'moss', prompt: `soft deep green moss carpet with pale green lichen patches, tiny ferns and a few small gray stones, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
+  { id: 'bark', prompt: `rough pine tree bark with deep vertical grooves, brown and gray with small moss patches, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
+  { id: 'ruin_stone', prompt: `ancient weathered sandstone blocks with worn carved edges, cracks and moss in the seams, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
   { id: 'grass_wild', prompt: `green wildflower meadow grass sprinkled with tiny purple, yellow and white flowers, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
 ];
 
@@ -169,6 +171,18 @@ export const CLUTTER = [
   { id: 'daisies', flat: false, prompt: `A small clump of white daisies with yellow centers on green stems, side view. ${CLUTTER_STYLE}` },
   { id: 'bluebells', flat: false, prompt: `A small clump of blue bellflowers on curved green stems, side view. ${CLUTTER_STYLE}` },
   { id: 'poppies', flat: false, prompt: `A small clump of bright red poppies on thin green stems, side view. ${CLUTTER_STYLE}` },
+];
+
+// Set dressing sprites, packed into a 4x2 atlas (public/assets/ui/decor_atlas.png).
+export const DECOR = [
+  { id: 'bush_round', flat: false, prompt: `A dense round leafy green shrub, side view, bushy silhouette with individual leaves. ${CLUTTER_STYLE}` },
+  { id: 'bush_berry', flat: false, prompt: `A leafy dark green bush with clusters of small red berries, side view. ${CLUTTER_STYLE}` },
+  { id: 'bush_fern', flat: false, prompt: `A lush clump of arching green fern fronds, side view. ${CLUTTER_STYLE}` },
+  { id: 'stump_top', flat: true, prompt: `The flat cut top of a tree stump seen from directly above: pale wood with concentric growth rings, cracks and a bark rim. ${CLUTTER_STYLE}` },
+  { id: 'banner_blue', flat: false, prompt: `A tall vertical cloth war banner hanging straight down, deep blue with gold trim and a gold lightning bolt emblem, swallowtail bottom edge, front view, flat, no pole. ${CLUTTER_STYLE}` },
+  { id: 'banner_red', flat: false, prompt: `A tall vertical cloth war banner hanging straight down, crimson with gold trim and a gold tower emblem, swallowtail bottom edge, front view, flat, no pole. ${CLUTTER_STYLE}` },
+  { id: 'butterfly_orange', flat: true, prompt: `A single orange and black monarch butterfly with wings spread open, seen from directly above, symmetrical. ${CLUTTER_STYLE}` },
+  { id: 'butterfly_blue', flat: true, prompt: `A single bright blue morpho butterfly with wings spread open, seen from directly above, symmetrical. ${CLUTTER_STYLE}` },
 ];
 
 // Floating decals for the ponds, packed into a 2x2 atlas (public/assets/ui/water_decals.png).

@@ -294,6 +294,18 @@
       "roughness": "assets/textures/moss_roughness.jpg",
       "height": "assets/textures/moss_height.jpg"
     },
+    "bark": {
+      "color": "assets/textures/bark_color.jpg",
+      "normal": "assets/textures/bark_normal.jpg",
+      "roughness": "assets/textures/bark_roughness.jpg",
+      "height": "assets/textures/bark_height.jpg"
+    },
+    "ruin_stone": {
+      "color": "assets/textures/ruin_stone_color.jpg",
+      "normal": "assets/textures/ruin_stone_normal.jpg",
+      "roughness": "assets/textures/ruin_stone_roughness.jpg",
+      "height": "assets/textures/ruin_stone_height.jpg"
+    },
     "grass_wild": {
       "color": "assets/textures/grass_wild_color.jpg",
       "normal": "assets/textures/grass_wild_normal.jpg",
@@ -408,6 +420,7 @@
     "fern": "assets/ui/fern.png",
     "clutter_flat": "assets/ui/clutter_flat.png",
     "clutter_upright": "assets/ui/clutter_upright.png",
-    "water_decals": "assets/ui/water_decals.png"
+    "water_decals": "assets/ui/water_decals.png",
+    "decor_atlas": "assets/ui/decor_atlas.png"
   }
 }

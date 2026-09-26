@@ -44,6 +44,12 @@ npm run build      # static build in dist/
 - **Battle damage** (`render/damage.ts`): a 4-texels-per-cell map that records footsteps, craters, scorch and temperature. Routes wear from forest floor to trampled grass, then dirt, then churned mud. Explosions dent the terrain. Fire leaves smouldering embers, and frost novas and blizzards rime the ground. Everything slowly heals.
 - **Foliage** (`render/foliage.ts`): GPU-instanced 3D grass blades, leaf, twig, pebble and clover litter, plus flowers, mushrooms and ferns. All of it sways in the wind and reads the height and damage maps, so it flattens, burns and disappears under buildings.
 - **Lighting** (`render/lights.ts`): power arcs, bolts, projectiles, impacts, spells, braziers and crystals share a pool of dynamic point lights. One of them casts cube shadows and follows the brightest arc or storm strike. The environment map is regenerated from the sky, and the water is a lit, reflective PBR surface. Other touches: GTAO ambient occlusion, cloud shadows, lakebed caustics, and bloom that brightens at night.
+- **Set dressing** (`render/decor.ts`, `render/shore.ts`): all of it is modelled in code and textured with diffui art (a sprite atlas plus bark and ruin-stone PBR sets). It only goes on unbuildable ground, so it never hides a tower.
+  - Bushes, berry shrubs and ferns line the forest edge.
+  - Mossy fallen logs and stumps have growth-ring caps.
+  - Ruined columns, fallen drums and a crumbled wall stand in forest clearings.
+  - Heraldic banners flap at every checkpoint, and butterflies flit over the meadow by day.
+  - The ponds have lily pads, reeds and cattails.
 - **Atmosphere** (`render/atmosphere.ts`):
   - A cloud deck drifts in as you zoom out and parts around the middle of the screen. It uses the same noise as the terrain's cloud shadows, shifted along the sun, so each cloud sits over its own shadow.
   - Low mist pools in hollows and over ponds at dawn and at night. In fog weather it becomes deep drifting banks, and the plateaus rise out of them.

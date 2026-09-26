@@ -3,6 +3,7 @@ import { Grid, Terrain as T, W, H, idx, inBounds } from '../game/grid';
 import type { MapInfo } from '../game/map';
 import type { Assets } from './assets';
 import { ChunkedInstances, simplifiedTemplate, type Simplify } from './instanced';
+import { RUIN_SITES, RUIN_CLEARING } from './decor';
 import type { LightPool } from './lights';
 import { BORDER, fbm, type TerrainView } from './terrain';
 
@@ -50,6 +51,8 @@ export class Props {
         if (r() > dens || d > BORDER - 2) continue;
         // keep a view corridor open near the camera side (south)
         if (jz > H + 1.5 && d < 5 && r() < 0.6) continue;
+        // clearings for the ruins (decor.ts)
+        if (RUIN_SITES.some((c) => Math.hypot(c.x - jx, c.z - jz) < RUIN_CLEARING - r() * 0.8)) continue;
       }
       treeSpots.push({ x: jx, z: jz, sc: 0.75 + r() * 0.55 });
     }
