@@ -123,6 +123,14 @@ Missing models fall back to procedural placeholders, so the game always runs.
 
 Every sound is synthesized with WebAudio (`src/audio.ts`): the tower and spell effects, gusty wind, birdsong by day, crickets at night, and rain. Recorded CC0 samples from [Kenney](https://kenney.nl)'s Impact, RPG, Interface and Sci-fi packs are layered on top (`src/sfx.ts`). Each play varies slightly in pitch and gain and is panned by screen position, and voices are capped so rapid fire doesn't pile up. To rebuild the samples, unzip the packs into `tools/assets/raw/sfx/` and run `npx tsx tools/sfx.ts`.
 
+## Tests
+
+```bash
+npm test   # node:test + tsx: the maze can't be sealed, wall replacement, power stays in bounds, saves round-trip, a short game plays through
+```
+
+GitHub Actions runs the type check, the tests and a production build on every push.
+
 ## Balance checks
 
 ```bash

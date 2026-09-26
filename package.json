@@ -11,7 +11,8 @@
     "assets:concepts": "node tools/assets/pipeline.mjs concepts",
     "assets:models": "node tools/assets/pipeline.mjs models",
     "assets:textures": "node tools/assets/pipeline.mjs textures",
-    "assets:status": "node tools/assets/pipeline.mjs status"
+    "assets:status": "node tools/assets/pipeline.mjs status",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "three": "^0.186.1"
