@@ -17,7 +17,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
-import { MODELS, TEXTURES, ICONS, HUD_ICONS, ART, SPRITES, CLUTTER } from './manifest.mjs';
+import { MODELS, TEXTURES, ICONS, HUD_ICONS, ART, SPRITES, CLUTTER, WATER_DECALS } from './manifest.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const TOOLS = path.join(ROOT, 'tools/assets');
@@ -175,6 +175,23 @@ async function cmdClutter(ids) {
     fs.writeFileSync(path.join(PUB, 'ui', `${name}.json`), JSON.stringify(all));
     log('atlas', name, all.join(','));
   }
+}
+
+async function cmdWaterDecals(ids) {
+  const list = WATER_DECALS.filter((m) => !ids.length || ids.includes(m.id));
+  await pool(list, 4, async (m) => { await genConcept(m); });
+  const comps = [];
+  for (let i = 0; i < WATER_DECALS.length; i++) {
+    const src = path.join(CONCEPTS, `${WATER_DECALS[i].id}.png`);
+    if (!fs.existsSync(src)) continue;
+    const buf = await sharp(src).trim({ threshold: 1 })
+      .resize(248, 248, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .extend({ top: 4, bottom: 4, left: 4, right: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+    comps.push({ input: buf, left: (i % 2) * 256, top: Math.floor(i / 2) * 256 });
+  }
+  await sharp({ create: { width: 512, height: 512, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite(comps).png().toFile(path.join(PUB, 'ui', 'water_decals.png'));
+  log('atlas water_decals', WATER_DECALS.map((d) => d.id).join(','));
 }
 
 async function cmdIcons(ids) {
@@ -401,7 +418,7 @@ function writeRuntimeManifest() {
   const ui = {};
   for (const h of [...HUD_ICONS, ...ART]) if (fs.existsSync(path.join(PUB, 'ui', `${h.id}.webp`))) ui[h.id] = `assets/ui/${h.id}.webp`;
   for (const h of SPRITES) if (fs.existsSync(path.join(PUB, 'ui', `${h.id}.png`))) ui[h.id] = `assets/ui/${h.id}.png`;
-  for (const a of ['clutter_flat', 'clutter_upright']) if (fs.existsSync(path.join(PUB, 'ui', `${a}.png`))) ui[a] = `assets/ui/${a}.png`;
+  for (const a of ['clutter_flat', 'clutter_upright', 'water_decals']) if (fs.existsSync(path.join(PUB, 'ui', `${a}.png`))) ui[a] = `assets/ui/${a}.png`;
   fs.writeFileSync(path.join(PUB, 'manifest.json'), JSON.stringify({ models, textures, icons, portraits, ui }, null, 2));
   log('wrote public/assets/manifest.json');
 }
@@ -444,13 +461,14 @@ async function balance() {
 
 // ---------------------------------------------------------------- main
 const [cmd, ...ids] = process.argv.slice(2);
-if (!DIFFUI_TOKEN && ['concepts', 'icons', 'textures'].includes(cmd)) throw new Error('DIFFUI_TOKEN missing');
+if (!DIFFUI_TOKEN && ['concepts', 'icons', 'textures', 'water'].includes(cmd)) throw new Error('DIFFUI_TOKEN missing');
 if (!MESHY_KEY && ['models', 'rig'].includes(cmd)) throw new Error('MESHY_API_KEY missing');
 switch (cmd) {
   case 'concepts': await cmdConcepts(ids); break;
   case 'icons': await cmdIcons(ids); break;
   case 'clutter': await cmdClutter(ids); break;
   case 'textures': await cmdTextures(ids); break;
+  case 'water': await cmdWaterDecals(ids); break;
   case 'models': await balance(); await cmdModels(ids); await balance(); break;
   case 'rig': await cmdRig(ids); await balance(); break;
   case 'optimize': await cmdOptimize(ids); break;

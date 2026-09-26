@@ -36,7 +36,7 @@ export class Overlay {
     this.hoverRing = this.ring(0xffffff, 0.35);
     // The route is a UI overlay: drawn over grass and buildings (no depth test) with a dark
     // underlay so it reads on bright meadow as well as on dirt.
-    this.pathMat = new THREE.MeshBasicMaterial({ map: dashTexture(), color: 0xfff2c0, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+    this.pathMat = new THREE.MeshBasicMaterial({ map: dashTexture(), color: 0xd9cda2, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
     this.path = new THREE.Mesh(new THREE.BufferGeometry(), this.pathMat);
     this.path.renderOrder = 38;           // above effects, under the cloud deck and health bars
     this.path.frustumCulled = false;
@@ -196,7 +196,8 @@ export class Overlay {
 
   setPathVisible(v: boolean, preview = false) {
     this.path.visible = v;
-    this.pathMat.color.set(preview ? 0x9fffb0 : 0xfff2c0);
+    // kept below the bloom threshold so the route never glows at night
+    this.pathMat.color.set(preview ? 0x86d894 : 0xd9cda2);
     this.pathMat.opacity = preview ? 0.95 : 0.85;
   }
 

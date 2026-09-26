@@ -29,7 +29,6 @@ export function fbm(x: number, z: number) {
   return vnoise(x, z) * 0.5 + vnoise(x * 2.03, z * 2.03) * 0.25 + vnoise(x * 4.1, z * 4.1) * 0.125;
 }
 
-const LAKEBED = -1.0;
 /** Gentle rolling of the meadow (world units). */
 const ROLL = 0.34;
 
@@ -56,6 +55,7 @@ export class TerrainView {
   };
 
   constructor(private grid: Grid, arrays: TerrainArrays, damage: GroundDamage) {
+    this.deep = this.computeDeepField();
     this.heights = new Float32Array(this.vw * this.vh);
     for (let j = 0; j < this.vh; j++) for (let i = 0; i < this.vw; i++) {
       this.heights[j * this.vw + i] = this.computeHeight(i / RES - BORDER, j / RES - BORDER);
@@ -156,7 +156,39 @@ export class TerrainView {
     // dry land never dips below the water table (or the lake plane would show through)
     const floor = WATER_LEVEL + 0.1, k = 0.12;
     const dry = floor + k * Math.log1p(Math.exp((land - floor) / k)); // smooth max(land, floor)
-    return THREE.MathUtils.lerp(dry, LAKEBED + bump * 0.3, lake);
+    // shelved basins: shallow sandy margins sloping down to the deep middle
+    const depth = 0.07 + 0.74 * THREE.MathUtils.smoothstep(this.deepAt(x, z), 0.36, 0.92) + bump * 0.12;
+    return THREE.MathUtils.lerp(dry, WATER_LEVEL - Math.max(0.04, depth), lake);
+  }
+
+  /** How far into open water each cell is: a wide gaussian (sigma ~1.8 cells) of the water mask. */
+  private deep: Float32Array;
+  private computeDeepField() {
+    const w = TW, h = TH, R = 4, s2 = 2 * 1.8 * 1.8;
+    const src = new Float32Array(w * h), tmp = new Float32Array(w * h), out = new Float32Array(w * h);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) src[j * w + i] = this.terrainAt(i - BORDER, j - BORDER) === T.Water ? 1 : 0;
+    const k = Array.from({ length: 2 * R + 1 }, (_, i) => Math.exp(-((i - R) ** 2) / s2));
+    const ks = k.reduce((a, b) => a + b, 0);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      let a = 0;
+      for (let o = -R; o <= R; o++) a += src[j * w + Math.min(w - 1, Math.max(0, i + o))] * k[o + R];
+      tmp[j * w + i] = a / ks;
+    }
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      let a = 0;
+      for (let o = -R; o <= R; o++) a += tmp[Math.min(h - 1, Math.max(0, j + o)) * w + i] * k[o + R];
+      out[j * w + i] = a / ks;
+    }
+    return out;
+  }
+
+  /** Bilinear sample of the deep-water field at a world position (cell centres at +0.5). */
+  private deepAt(x: number, z: number) {
+    const fx = x + BORDER - 0.5, fz = z + BORDER - 0.5;
+    const i = Math.max(0, Math.min(TW - 2, Math.floor(fx))), j = Math.max(0, Math.min(TH - 2, Math.floor(fz)));
+    const u = Math.min(1, Math.max(0, fx - i)), v = Math.min(1, Math.max(0, fz - j));
+    const d = this.deep, a = d[j * TW + i], b = d[j * TW + i + 1], c = d[(j + 1) * TW + i], e = d[(j + 1) * TW + i + 1];
+    return (a * (1 - u) + b * u) * (1 - v) + (c * (1 - u) + e * u) * v;
   }
 
   /** 0..1 soft water coverage around a point (gaussian over nearby cells). */
@@ -401,7 +433,10 @@ const TERRAIN_EMISSIVE = /* glsl */`
     float c1 = sin(cp.x * 2.1 + sin(cp.y * 1.7 + uTime * 1.1) * 1.6 + uTime * 0.7);
     float c2 = sin(cp.y * 2.3 + sin(cp.x * 1.9 - uTime * 0.9) * 1.6 - uTime * 0.6);
     float caust = pow(clamp(1.0 - abs(c1 + c2) * 0.5, 0.0, 1.0), 7.0);
-    totalEmissiveRadiance += vec3(0.5, 0.85, 1.0) * caust * terrUnder * uSun * 0.45;
+    // strongest over the sunlit shelves, gone in the deep
+    float bedDepth = ${WATER_LEVEL.toFixed(3)} - vWPos.y;
+    float shallowK = smoothstep(0.0, 0.06, bedDepth) * (1.0 - smoothstep(0.2, 0.6, bedDepth));
+    totalEmissiveRadiance += vec3(0.45, 0.8, 0.85) * caust * shallowK * uSun * 0.2;
   }
   if (uGridAlpha > 0.0) {
     vec2 gf = abs(fract(vWPos.xz) - 0.5);

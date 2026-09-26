@@ -171,6 +171,14 @@ export const CLUTTER = [
   { id: 'poppies', flat: false, prompt: `A small clump of bright red poppies on thin green stems, side view. ${CLUTTER_STYLE}` },
 ];
 
+// Floating decals for the ponds, packed into a 2x2 atlas (public/assets/ui/water_decals.png).
+export const WATER_DECALS = [
+  { id: 'lilypad', flat: true, prompt: `A single round glossy green lily pad with a V-shaped notch and radial veins, seen from directly above, lying flat. ${CLUTTER_STYLE}` },
+  { id: 'lilypad_flower', flat: true, prompt: `A round green lily pad with a blooming pink and white water lily flower on it, seen from directly above. ${CLUTTER_STYLE}` },
+  { id: 'lilypad_pair', flat: true, prompt: `Two small overlapping green lily pads with notches, one slightly yellowed, seen from directly above, lying flat. ${CLUTTER_STYLE}` },
+  { id: 'lilypad_bud', flat: true, prompt: `A round green lily pad with a closed pink water lily bud beside it, seen from directly above. ${CLUTTER_STYLE}` },
+];
+
 const ICON_STYLE =
   'Square fantasy RTS command button icon painting in the style of classic Warcraft III icons: ' +
   'bold hand-painted illustration filling the whole square, dramatic rim lighting, rich saturated colors, dark vignette edges, no text, no border frame.';

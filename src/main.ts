@@ -20,6 +20,7 @@ import { LightPool } from './render/lights';
 import { loadTerrainArrays } from './render/terrainTextures';
 import { setWindTime } from './render/instanced';
 import { Atmosphere } from './render/atmosphere';
+import { ShoreLife } from './render/shore';
 import { Controller } from './input/controller';
 import { Hud, type AppHooks } from './ui/hud';
 import { Audio } from './audio';
@@ -39,7 +40,7 @@ assets.maxAnisotropy = world.renderer.capabilities.getMaxAnisotropy();
 
 interface Session {
   game: Game; group: THREE.Group; terrain: TerrainView; water: WaterView; props: Props; sv: StructureViews; rv: RunnerViews;
-  overlay: Overlay; fx: Effects; bars: Bars; ctrl: Controller; difficulty: Difficulty; damage: GroundDamage; foliage: Foliage; lights: LightPool; atmos: Atmosphere;
+  overlay: Overlay; fx: Effects; bars: Bars; ctrl: Controller; difficulty: Difficulty; damage: GroundDamage; foliage: Foliage; lights: LightPool; atmos: Atmosphere; shore: ShoreLife;
 }
 let session: Session | null = null;
 
@@ -87,6 +88,7 @@ async function startGame(difficulty: Difficulty) {
   const damage = new GroundDamage(game.grid);
   const terrain = new TerrainView(game.grid, arrays, damage);
   const water = new WaterView(terrain, assets);
+  const shore = new ShoreLife(terrain, assets);
   const heightAt = (x: number, z: number) => terrain.heightAt(x, z);
   const lights = new LightPool(settings.manyLights ? 14 : 6);
   lights.shadowsEnabled = settings.shadows && settings.arcShadows;
@@ -100,9 +102,9 @@ async function startGame(difficulty: Difficulty) {
   foliage.group.visible = settings.foliage;
   const atmos = new Atmosphere(terrain, props.treeSpots, (x, z) => terrain.terrainAt(Math.floor(x), Math.floor(z)) === TerrainType.Water);
   atmos.group.visible = settings.atmosphere;
-  group.add(terrain.mesh, water.mesh, foliage.group, props.group, sv.group, rv.group, overlay.group, fx.group, bars.mesh, lights.group, atmos.group);
+  group.add(terrain.mesh, water.mesh, shore.group, foliage.group, props.group, sv.group, rv.group, overlay.group, fx.group, bars.mesh, lights.group, atmos.group);
   world.scene.add(group);
-  const aoStatic = [foliage.group, fx.group, water.mesh, bars.mesh, overlay.group, world.sky, lights.group, ...atmos.aoExclude];
+  const aoStatic = [foliage.group, shore.group, fx.group, water.mesh, bars.mesh, overlay.group, world.sky, lights.group, ...atmos.aoExclude];
   let aoFrame = -1, aoList: THREE.Object3D[] = aoStatic;
   world.aoExclude = aoStatic;
   world.aoExcludeFn = () => {
@@ -138,7 +140,7 @@ async function startGame(difficulty: Difficulty) {
   world.dist = 22;
   world.goal.set(W / 2 - 2, 0, H / 2 + 3);
   world.goalDist = 52;
-  session = { game, group, terrain, water, props, sv, rv, overlay, fx, bars, ctrl, difficulty, damage, foliage, lights, atmos };
+  session = { game, group, terrain, water, props, sv, rv, overlay, fx, bars, ctrl, difficulty, damage, foliage, lights, atmos, shore };
   starting = false;
   hud.attach(game, ctrl);
   hud.message('Build your maze. Runners must pass checkpoints 1 → 5.', 'info');
@@ -221,6 +223,7 @@ function tick(dt: number) {
   tu.uSun.value = env.sunlight * (weather === 'clear' ? 1 : 0.5);
   const wind = weather === 'storm' ? 2.4 : weather === 'rain' ? 1.6 : weather === 'cloudy' ? 1.2 : 1;
   s.foliage.update(dt, wind);
+  s.shore.update(time, wind);
   tu.uCover.value = s.atmos.cover;
   s.props.update(time, s.lights, world.nightness);
   s.sv.requestLights(s.lights, world.nightness);

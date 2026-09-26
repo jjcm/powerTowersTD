@@ -407,6 +407,7 @@
     "flower_clump": "assets/ui/flower_clump.png",
     "fern": "assets/ui/fern.png",
     "clutter_flat": "assets/ui/clutter_flat.png",
-    "clutter_upright": "assets/ui/clutter_upright.png"
+    "clutter_upright": "assets/ui/clutter_upright.png",
+    "water_decals": "assets/ui/water_decals.png"
   }
 }
