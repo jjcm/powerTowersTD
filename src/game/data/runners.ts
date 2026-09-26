@@ -43,11 +43,14 @@ export const RUNNERS: Record<RunnerTypeId, RunnerType> = {
 export type Difficulty = 'easy' | 'normal' | 'hard' | 'brutal';
 
 export const DIFFICULTIES: Record<Difficulty, { name: string; coef: [number, number, number, number]; lives: number; gold: number; desc: string }> = {
-  // Polynomials from the original map (Noob / Rookie / Hotshot / Veteran), scaled for single-player wave sizes.
+  // Health polynomials (a + b·r + c·r² + d·r³), after the original map's Noob/Rookie/Hotshot curves,
+  // tuned with tools/balance.ts. Its deliberately mediocre bot sweeps Squire, wins about half of
+  // Knight runs (otherwise falling somewhere past round 10), usually falls around rounds 10-16 on
+  // Warlord and 9-12 on Doom.
   easy: { name: 'Squire', coef: [20, 8, 12, 0], lives: 30, gold: 500, desc: 'Forgiving. Learn the power grid.' },
-  normal: { name: 'Knight', coef: [20, 10, 25, 0], lives: 20, gold: 400, desc: 'The intended experience.' },
-  hard: { name: 'Warlord', coef: [15, 0, 35, 0], lives: 15, gold: 350, desc: 'The original Rookie curve. Maze well or die.' },
-  brutal: { name: 'Doom', coef: [50, 21, 28, 1], lives: 10, gold: 300, desc: 'Cubic health growth, like Hotshot in the original.' },
+  normal: { name: 'Knight', coef: [20, 10, 20, 0], lives: 20, gold: 400, desc: 'The intended experience.' },
+  hard: { name: 'Warlord', coef: [15, 5, 23, 0], lives: 15, gold: 400, desc: 'Tougher runners, fewer lives. Maze well or die.' },
+  brutal: { name: 'Doom', coef: [45, 20, 20, 0.9], lives: 10, gold: 300, desc: 'Cubic health growth: the late rounds are brutal.' },
 };
 
 export const MAX_ROUND = 30;

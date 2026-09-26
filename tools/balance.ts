@@ -6,7 +6,7 @@ import { Game, STEP } from '../src/game/sim';
 import { STRUCTURES, M, type StructureId } from '../src/game/data/structures';
 import { W, H, idx, inBounds, Terrain } from '../src/game/grid';
 import type { Difficulty } from '../src/game/data/runners';
-import { roundBaseHp, buildWave } from '../src/game/data/runners';
+import { roundBaseHp, buildWave, DIFFICULTIES } from '../src/game/data/runners';
 import type { ResearchId } from '../src/game/data/research';
 
 const diff = (process.argv[2] ?? 'normal') as Difficulty;
@@ -16,6 +16,9 @@ function mulberry32(a: number) {
   return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 Math.random = mulberry32(seed * 7919);
+// tuning: COEF='[a,b,c,d]' overrides the difficulty's HP polynomial
+if (process.env.COEF) DIFFICULTIES[diff].coef = JSON.parse(process.env.COEF);
+if (process.env.GOLD) DIFFICULTIES[diff].gold = Number(process.env.GOLD);
 const g = new Game(diff, seed);
 const log = (...a: unknown[]) => console.log(...a);
 
@@ -157,12 +160,13 @@ function packageCost(id: StructureId) {
 function buildPhase() {
   const r = g.round + 1;
   for (const [at, id] of RESEARCH_PLAN) if (r >= at && g.researchState(id) === 'available' && !g.researching && g.gold > RESEARCH_COST(id) + 150) g.startResearch(id);
-  const reserve = Math.floor(g.gold * (r <= 2 ? 0.35 : r <= 10 ? 0.2 : 0.08));
+  const reserve = Math.floor(g.gold * (r <= 2 ? 0.3 : 0.1));
   let n = 0;
   while (n++ < 12) {
     const spend = g.gold - reserve;
     const up = g.structures.filter((s) => s.def.attack && g.canUpgrade(s).ok).sort((a, b) => a.level - b.level)[0];
-    if (r > 8 && up && Math.random() < 0.5 && g.upgradeCost(up) * 1.6 < spend) { g.upgrade(up); addPower(up.cx, up.cz); continue; }
+    // upgrades pack more damage into the same maze spot (and the same links): lean on them from round 4
+    if (r > 3 && up && Math.random() < 0.6 && g.upgradeCost(up) * 1.3 < spend) { g.upgrade(up); addPower(up.cx, up.cz); continue; }
     const plan = [TOWER_PLAN(r + n), 'cannon', 'ballista'] as StructureId[];
     const id = plan.find((p) => spend >= packageCost(p));
     if (!id) break;
