@@ -3,6 +3,10 @@
 //   pitch and gain variation, a stereo pan from its screen position, and a voice limit, so
 //   rapid fire doesn't turn into a machine-gun loop.
 // - Ambience is alive: gusty wind, birdsong by day, crickets at night, rain.
+// - Recorded CC0 samples (sfx.ts) play on top where they exist; until they've loaded (or if a
+//   file is missing) the synth recipe alone covers the sound.
+
+import { SFX, SFX_FILES } from './sfx';
 
 type Osc = OscillatorType;
 
@@ -20,6 +24,7 @@ export class Audio {
   private windFilter: BiquadFilterNode | null = null;
   private gust = 0; private gustV = 0;
   private nextBird = 0; private nextCricket = 0;
+  private buffers = new Map<string, AudioBuffer>();
   volume = 0.6;
   /** Hard mute (`?mute` in the URL, for automated testing); leaves the saved volume alone. */
   muted = false;
@@ -33,7 +38,7 @@ export class Audio {
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
     this.master.connect(comp).connect(ctx.destination);
-    this.sfx = ctx.createGain(); this.sfx.gain.value = 0.75; this.sfx.connect(this.master);
+    this.sfx = ctx.createGain(); this.sfx.gain.value = 1.1; this.sfx.connect(this.master);
     this.amb = ctx.createGain(); this.amb.gain.value = 0.9; this.amb.connect(this.master);
 
     const len = ctx.sampleRate * 2;
@@ -71,6 +76,17 @@ export class Audio {
     this.windGain = wind.g; this.windFilter = wind.f;
     this.nextBird = ctx.currentTime + 2;
     this.nextCricket = ctx.currentTime + 1;
+    void this.loadSamples();
+  }
+
+  private async loadSamples() {
+    const ctx = this.ctx!;
+    await Promise.all(SFX_FILES.map(async (name) => {
+      try {
+        const r = await fetch(`assets/sfx/${name}.mp3`);
+        if (r.ok) this.buffers.set(name, await ctx.decodeAudioData(await r.arrayBuffer()));
+      } catch { /* the synth recipe covers it */ }
+    }));
   }
 
   setVolume(v: number) { this.volume = v; if (this.ctx) this.master.gain.value = this.muted ? 0 : v; }
@@ -157,6 +173,20 @@ export class Audio {
     out.connect(panner).connect(this.sfx);
     const send = ctx.createGain(); send.gain.value = 0.12; panner.connect(send).connect(this.verb);
     let end = 0;
+    // recorded variant, if there is one
+    const def = SFX[name];
+    const buf = def ? this.buffers.get(def.files[Math.floor(Math.random() * def.files.length)]) : undefined;
+    let synthGain = 1;
+    if (def && buf) {
+      const src = ctx.createBufferSource(); src.buffer = buf;
+      const r = (def.rate ? def.rate[0] + Math.random() * (def.rate[1] - def.rate[0]) : 1) * p;
+      src.playbackRate.value = r;
+      const g = ctx.createGain(); g.gain.value = def.gain;
+      src.connect(g).connect(out); src.start(t);
+      end = buf.duration / r;
+      synthGain = def.layer ?? 0;
+    }
+    const sOut = ctx.createGain(); sOut.gain.value = synthGain; sOut.connect(out);
     const osc = (type: Osc, f0: number, f1: number, dur: number, g0: number, delay = 0, atk = 0.006) => {
       const o = ctx.createOscillator(); o.type = type;
       o.frequency.setValueAtTime(f0 * p, t + delay);
@@ -164,7 +194,7 @@ export class Audio {
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + delay);
       g.gain.exponentialRampToValueAtTime(g0, t + delay + atk);
       g.gain.exponentialRampToValueAtTime(0.0001, t + delay + dur);
-      o.connect(g).connect(out); o.start(t + delay); o.stop(t + delay + dur + 0.05);
+      o.connect(g).connect(sOut); o.start(t + delay); o.stop(t + delay + dur + 0.05);
       end = Math.max(end, delay + dur);
     };
     const noise = (type: BiquadFilterType, f0: number, f1: number, dur: number, g0: number, q = 1, delay = 0, atk = 0.004) => {
@@ -174,7 +204,7 @@ export class Audio {
       const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + delay);
       g.gain.exponentialRampToValueAtTime(g0, t + delay + atk);
       g.gain.exponentialRampToValueAtTime(0.0001, t + delay + dur);
-      s.connect(f).connect(g).connect(out); s.start(t + delay, Math.random() * 1.5); s.stop(t + delay + dur + 0.05);
+      s.connect(f).connect(g).connect(sOut); s.start(t + delay, Math.random() * 1.5); s.stop(t + delay + dur + 0.05);
       end = Math.max(end, delay + dur);
     };
     /** n tiny noise grains scattered over `span` seconds (crackle, debris, sizzle). */
@@ -186,7 +216,7 @@ export class Audio {
     };
     const wet = (v: number) => { send.gain.value = v; };
 
-    switch (name) {
+    if (synthGain > 0) switch (name) {
       // ---- towers
       case 'bolt':      // ballista: string snap, wooden knock, bolt whoosh
         osc('triangle', 240, 95, 0.12, 0.16, 0, 0.002);
@@ -222,8 +252,8 @@ export class Audio {
         wet(0.25); break;
       case 'whip': noise('bandpass', 1200, 4200, 0.12, 0.28, 3, 0, 0.002); break;
       case 'splash':    // water body + droplets
-        noise('bandpass', 1400, 320, 0.45, 0.35, 0.7, 0, 0.01);
-        for (let i = 0; i < 4; i++) { const f = 1100 + Math.random() * 900; osc('sine', f, f * 1.5, 0.03, 0.06, 0.06 + Math.random() * 0.2, 0.002); }
+        noise('bandpass', 1400, 320, 0.45, 0.55, 0.7, 0, 0.01);
+        for (let i = 0; i < 4; i++) { const f = 1100 + Math.random() * 900; osc('sine', f, f * 1.5, 0.03, 0.1, 0.06 + Math.random() * 0.2, 0.002); }
         wet(0.2); break;
       // ---- spells and weather
       case 'holy': [660, 830, 990, 1320].forEach((f, i) => osc('sine', f, f * 1.005, 0.9, 0.06, i * 0.03, 0.08)); wet(0.5); break;
@@ -237,7 +267,7 @@ export class Audio {
         osc('sine', 2600, 2640, 0.1, 0.03, 0.04, 0.002); osc('sine', 3900, 3950, 0.08, 0.018, 0.05, 0.002);
         break;
       case 'roar': osc('sawtooth', 160, 70, 0.6, 0.2); noise('lowpass', 800, 200, 0.6, 0.25); wet(0.3); break;
-      case 'horn': osc('sawtooth', 147, 147, 0.9, 0.14, 0, 0.08); osc('sawtooth', 220, 220, 0.9, 0.1, 0.35, 0.08); noise('lowpass', 400, 300, 1.2, 0.04); wet(0.55); break;
+      case 'horn': osc('sawtooth', 147, 147, 0.9, 0.5, 0, 0.08); osc('sawtooth', 220, 220, 0.9, 0.38, 0.35, 0.08); noise('lowpass', 400, 300, 1.2, 0.12); wet(0.55); break;
       case 'leak': osc('square', 220, 110, 0.5, 0.1); osc('square', 208, 104, 0.5, 0.07, 0.05); break;
       // ---- building / UI
       case 'build':     // stone set down: thud and a little rubble
@@ -250,7 +280,7 @@ export class Audio {
         break;
       case 'upgrade': [523, 659, 784, 1046].forEach((f, i) => osc('triangle', f, f, 0.2, 0.14, i * 0.06)); wet(0.3); break;
       case 'link': osc('sawtooth', 220, 1400, 0.16, 0.05); grains(5, 0.12, 3000, 7000, 0.12); break;
-      case 'cleared': [392, 494, 587, 784].forEach((f, i) => osc('triangle', f, f, 0.4, 0.13, i * 0.11)); wet(0.35); break;
+      case 'cleared': [392, 494, 587, 784].forEach((f, i) => osc('triangle', f, f, 0.4, 0.4, i * 0.11)); wet(0.35); break;
       case 'research': osc('sine', 880, 880, 0.12, 0.12); break;
       case 'complete': [659, 880, 1318].forEach((f, i) => osc('sine', f, f, 0.45, 0.12, i * 0.09)); wet(0.35); break;
       default:

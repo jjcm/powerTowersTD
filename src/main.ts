@@ -56,6 +56,7 @@ const hooks: AppHooks = {
     audio.setVolume(settings.volume);
     if (session) { session.ctrl.edgeScroll = settings.edgeScroll; session.game.autoLink = settings.autoLink; session.lights.shadowsEnabled = settings.shadows && settings.arcShadows; session.foliage.group.visible = settings.foliage; session.atmos.group.visible = settings.atmosphere; }
   },
+  sound: (name) => audio.play(name, 0.8),
   project: (x, y, z) => {
     tmpV.set(x, y, z).project(world.camera);
     return { x: (tmpV.x * 0.5 + 0.5) * window.innerWidth, y: (-tmpV.y * 0.5 + 0.5) * window.innerHeight, visible: tmpV.z < 1 && Math.abs(tmpV.x) < 1.1 && Math.abs(tmpV.y) < 1.1 };
@@ -164,7 +165,7 @@ function playAt(name: string, x: number | undefined, z: number | undefined, vol:
   let pan = 0;
   if (x !== undefined && z !== undefined) {
     const d = Math.hypot(x - world.target.x, z - world.target.z);
-    vol *= Math.max(0.15, 1 - d / 45) * Math.max(0.3, 1 - (world.dist - 20) / 80);
+    vol *= Math.max(0.2, 1 - d / 50) * Math.max(0.55, 1 - (world.dist - 20) / 110);
     tmpV.set(x, 1, z).project(world.camera);
     pan = tmpV.z < 1 ? tmpV.x * 0.8 : 0;
   }

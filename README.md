@@ -93,6 +93,10 @@ node tools/assets/pipeline.mjs optimize <id>   # → public/assets/models + mani
 
 Missing models fall back to procedural placeholders, so the game always runs.
 
+## Sound
+
+Every sound is synthesized with WebAudio (`src/audio.ts`): the tower and spell effects, gusty wind, birdsong by day, crickets at night, and rain. Recorded CC0 samples from [Kenney](https://kenney.nl)'s Impact, RPG, Interface and Sci-fi packs are layered on top (`src/sfx.ts`). Each play varies slightly in pitch and gain and is panned by screen position, and voices are capped so rapid fire doesn't pile up. To rebuild the samples, unzip the packs into `tools/assets/raw/sfx/` and run `npx tsx tools/sfx.ts`.
+
 ## Balance checks
 
 ```bash

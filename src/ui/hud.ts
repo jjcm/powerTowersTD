@@ -15,6 +15,8 @@ export interface AppHooks {
   settings: { shadows: boolean; bloom: boolean; resolution: number; volume: number; edgeScroll: boolean; autoLink: boolean; showPath: boolean; foliage: boolean; arcShadows: boolean; manyLights: boolean; ao: boolean; tiltShift: boolean; atmosphere: boolean };
   applySettings(): void;
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean };
+  /** Interface sound (click, error). */
+  sound(name: string): void;
 }
 
 interface Tip { title: string; cost?: number | string; body: string; hk?: string }
@@ -158,11 +160,11 @@ export class Hud {
     for (const [label, v] of [['❚❚', 0], ['1×', 1], ['2×', 2], ['3×', 3]] as [string, number][]) {
       const b = el('button', 'frame', label);
       b.dataset.speed = String(v);
-      b.onclick = () => this.setSpeed(v);
+      b.onclick = () => { this.app.sound('ui_click'); this.setSpeed(v); };
       speed.append(b);
     }
     const route = el('button', 'frame route', 'Route');
-    route.onclick = () => this.ctrl.toggleRoute();
+    route.onclick = () => { this.app.sound('ui_click'); this.ctrl.toggleRoute(); };
     route.onmouseenter = () => this.showTip({ title: 'Show route', body: 'Keep the runners\' route drawn during waves. Hold <kbd>Alt</kbd> for a quick look.', hk: 'Tab' }, 'top');
     route.onmouseleave = () => this.hideTip();
     speed.append(route);
@@ -191,7 +193,7 @@ export class Hud {
     const tabs = el('div', 'tabs');
     BUILD_TABS.forEach((t, i) => {
       const b = el('button', 'tab', t.name);
-      b.onclick = () => { this.ctrl.tab = t.id; this.cardKey = ''; };
+      b.onclick = () => { this.app.sound('ui_click'); this.ctrl.tab = t.id; this.cardKey = ''; };
       b.onmouseenter = () => this.showTip({ title: t.name, body: 'Build category.', hk: String(i + 1) });
       b.onmouseleave = () => this.hideTip();
       tabs.append(b);
@@ -438,7 +440,9 @@ export class Hud {
 
   private press(i: number) {
     const b = this.buttons[i];
-    if (!b || b.disabled || !b.action) return;
+    if (!b || !b.action) return;
+    if (b.disabled) { this.app.sound('ui_error'); return; }
+    this.app.sound('ui_click');
     b.action();
     this.cardKey = '';
   }
@@ -647,6 +651,7 @@ export class Hud {
   // ---------------------------------------------------------------- messages / floating text
   message(text: string, kind = 'info') {
     if (!this.msgs) return;
+    if (kind === 'warn') this.app.sound('ui_error');
     const m = el('div', `msg ${kind}`, text);
     this.msgs.append(m);
     while (this.msgs.children.length > 4) this.msgs.firstElementChild!.remove();
