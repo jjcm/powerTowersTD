@@ -217,6 +217,7 @@ function tick(dt: number) {
 
   // bars
   const bars = s.bars;
+  bars.setViewportHeight(world.renderer.getDrawingBufferSize(drawSize).y);
   bars.begin();
   for (const r of g.runners) {
     if (!r.alive) continue;
@@ -232,9 +233,9 @@ function tick(dt: number) {
     const a = s.sv.anchor(st);
     const w = st.def.size === 1 ? 0.7 : 1.1;
     let y = a.y + 0.55;
-    if (ecap > 0) { bars.push(st.cx, y, st.cz, w, 0.075, st.energy / ecap, EN); y += 0.1; }
-    if (mcap > 0) { bars.push(st.cx, y, st.cz, w, 0.075, st.mana / mcap, MN); y += 0.1; }
-    if (st.overcharge && (st.heat > 0 || st.overheated > 0)) bars.push(st.cx, y, st.cz, w, 0.06, st.overheated > 0 ? 1 : st.heat / 100, HEAT);
+    if (ecap > 0) { bars.push(st.cx, y, st.cz, w, 0.1, st.energy / ecap, EN); y += 0.13; }
+    if (mcap > 0) { bars.push(st.cx, y, st.cz, w, 0.1, st.mana / mcap, MN); y += 0.13; }
+    if (st.overcharge && (st.heat > 0 || st.overheated > 0)) bars.push(st.cx, y, st.cz, w, 0.075, st.overheated > 0 ? 1 : st.heat / 100, HEAT);
   }
   bars.end();
 
