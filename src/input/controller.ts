@@ -14,6 +14,9 @@ export type Mode =
   | { kind: 'build'; id: StructureId }
   | { kind: 'link'; op: 'connect' | 'disconnect'; from: Structure };
 
+
+/** The bits of a mouse/pointer event the click logic needs (touch taps synthesize one). */
+interface PointerLike { clientX: number; clientY: number; button: number; shiftKey: boolean; target: EventTarget | null; preventDefault?(): void }
 export class Controller {
   mode: Mode = { kind: 'idle' };
   selected: Structure | null = null;
@@ -35,6 +38,10 @@ export class Controller {
   showRoute = false;
   onRouteToggle: (on: boolean) => void = () => {};
   private hits: THREE.Intersection[] = [];
+  /** Last touch activity: the browser's emulated mouse events after a tap are ignored. */
+  private lastTouch = -1e9;
+  /** True once the player has used touch (drives the on-screen Cancel button, no edge scroll). */
+  touchUsed = false;
   private pickKey = '';
   private pickCache: Structure | null = null;
   private abort = new AbortController();
@@ -52,7 +59,8 @@ export class Controller {
   constructor(private game: Game, private world: World, private sv: StructureViews, private overlay: Overlay, private terrain: TerrainView) {
     const c = world.canvas;
     const opt = { signal: this.abort.signal };
-    c.addEventListener('mousemove', (e) => { this.mouse.set(e.clientX, e.clientY); this.mouseIn = true; this.dirty = true; }, opt);
+    const emulated = () => performance.now() - this.lastTouch < 900;
+    c.addEventListener('mousemove', (e) => { if (emulated()) return; this.mouse.set(e.clientX, e.clientY); this.mouseIn = true; this.dirty = true; }, opt);
     // middle-drag panning via pointer capture, so the drag keeps working over the HUD
     c.addEventListener('pointerdown', (e) => {
       if (e.button !== 1) return;
@@ -86,8 +94,9 @@ export class Controller {
       this.world.canvas.style.cursor = 'ew-resize';
     }, opt);
     window.addEventListener('keyup', (e) => { if (e.key === 'Alt') e.preventDefault(); }, opt);
-    c.addEventListener('mousedown', (e) => this.down(e), opt);
-    window.addEventListener('mouseup', (e) => this.up(e), opt);
+    c.addEventListener('mousedown', (e) => { if (!emulated()) this.down(e); }, opt);
+    window.addEventListener('mouseup', (e) => { if (!emulated()) this.up(e); }, opt);
+    this.setupTouch(c, opt);
     c.addEventListener('contextmenu', (e) => e.preventDefault(), opt);
     c.addEventListener('wheel', (e) => { e.preventDefault(); this.world.goalDist *= Math.exp(e.deltaY * 0.0012); }, { passive: false, signal: this.abort.signal });
     window.addEventListener('keydown', (e) => this.keydown(e), opt);
@@ -139,18 +148,94 @@ export class Controller {
   /** Grab-the-map panning: the ground under the cursor stays under the cursor. */
   private panDrag(e: PointerEvent) {
     const m = this.middle!;
+    this.panBy(e.clientX - m.x, e.clientY - m.y);
+    m.x = e.clientX; m.y = e.clientY;
+  }
+
+  /** Move the camera so the ground follows a pointer that moved (dxPx, dyPx) on screen. */
+  private panBy(dxPx: number, dyPx: number) {
     const w = this.world;
     const cam = w.camera;
     const perPx = (w.dist * 2 * Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2)) / window.innerHeight;
     const pitch = Math.atan2(cam.position.y - w.target.y, Math.hypot(cam.position.x - w.target.x, cam.position.z - w.target.z));
-    const dx = (e.clientX - m.x) * perPx, dz = ((e.clientY - m.y) * perPx) / Math.max(0.3, Math.sin(pitch));
+    const dx = dxPx * perPx, dz = (dyPx * perPx) / Math.max(0.3, Math.sin(pitch));
     const cy = Math.cos(w.yaw), sy = Math.sin(w.yaw);
     w.goal.x -= dx * cy + dz * sy;
     w.goal.z -= -dx * sy + dz * cy;
     // move the eased target along too, so the drag feels 1:1 instead of rubber-banded
     w.target.x -= dx * cy + dz * sy;
     w.target.z -= -dx * sy + dz * cy;
-    m.x = e.clientX; m.y = e.clientY;
+  }
+
+  /**
+   * Touch: tap = click; one-finger drag pans (in build mode it steers the placement ghost and
+   * draws wall lines, and lifting places); two fingers pinch-zoom, twist-rotate and pan together.
+   */
+  private setupTouch(c: HTMLCanvasElement, opt: AddEventListenerOptions) {
+    const touches = new Map<number, { x: number; y: number }>();
+    let one: { x: number; y: number; moved: boolean; build: boolean } | null = null;
+    let two: { d: number; a: number; mx: number; my: number; dist: number; yaw: number } | null = null;
+    const w = this.world;
+    const pair = () => { const [a, b] = [...touches.values()]; return { d: Math.hypot(b.x - a.x, b.y - a.y), a: Math.atan2(b.y - a.y, b.x - a.x), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
+    const at = (x: number, y: number) => { this.mouse.set(x, y); this.mouseIn = true; this.refreshHover(); this.dirty = true; };
+    c.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      e.preventDefault();
+      this.lastTouch = performance.now();
+      this.touchUsed = true;
+      try { c.setPointerCapture(e.pointerId); } catch { /* gone */ }
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size === 1) {
+        at(e.clientX, e.clientY);
+        const build = this.mode.kind === 'build';
+        one = { x: e.clientX, y: e.clientY, moved: false, build };
+        // build mode: the ghost appears under the finger right away; a wall line starts here
+        if (build && this.hoverCell) this.drag = { ...this.hoverCell };
+      } else if (touches.size === 2) {
+        if (one?.build) this.drag = null;   // a second finger means camera, not placement
+        one = null;
+        const p = pair();
+        two = { ...p, dist: w.goalDist, yaw: w.goalYaw };
+      }
+    }, opt);
+    c.addEventListener('pointermove', (e) => {
+      const t = touches.get(e.pointerId);
+      if (e.pointerType !== 'touch' || !t) return;
+      this.lastTouch = performance.now();
+      const px = t.x, py = t.y;
+      t.x = e.clientX; t.y = e.clientY;
+      if (touches.size === 1 && one) {
+        if (!one.moved && Math.hypot(t.x - one.x, t.y - one.y) > 10) one.moved = true;
+        if (!one.moved) return;
+        if (one.build) at(t.x, t.y);
+        else this.panBy(t.x - px, t.y - py);
+      } else if (touches.size >= 2 && two) {
+        const p = pair();
+        w.goalDist = THREE.MathUtils.clamp(two.dist * two.d / Math.max(24, p.d), 12, 64);
+        w.dist = w.goalDist;
+        w.goalYaw = two.yaw - (p.a - two.a);
+        w.yaw = w.goalYaw;
+        this.panBy(p.mx - two.mx, p.my - two.my);
+        two.mx = p.mx; two.my = p.my;
+      }
+    }, opt);
+    const end = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch' || !touches.has(e.pointerId)) return;
+      touches.delete(e.pointerId);
+      this.lastTouch = performance.now();
+      const ev: PointerLike = { clientX: e.clientX, clientY: e.clientY, button: 0, shiftKey: false, target: c };
+      if (one && touches.size === 0 && e.type === 'pointerup') {
+        const o = one;
+        one = null;
+        if (o.build) { at(e.clientX, e.clientY); if (!this.drag && this.hoverCell) this.drag = { ...this.hoverCell }; this.up(ev); }
+        else if (!o.moved) { at(o.x, o.y); this.down(ev); this.up(ev); }
+      }
+      if (touches.size < 2) two = null;
+      if (touches.size === 1) one = null;              // lifting one finger of a pinch isn't a tap
+      if (touches.size === 0) { this.mouseIn = false; if (this.mode.kind !== 'build') this.drag = null; }
+    };
+    c.addEventListener('pointerup', end, opt);
+    c.addEventListener('pointercancel', end, opt);
   }
 
   /** Ground point under the mouse (ray marched against terrain heights). */
@@ -229,11 +314,11 @@ export class Controller {
     if (inBounds(hx, hz)) this.hoverCell = { x: hx, z: hz };
   }
 
-  private down(e: MouseEvent) {
+  private down(e: PointerLike) {
     this.mouse.set(e.clientX, e.clientY);
     this.mouseIn = true;
     this.refreshHover();
-    if (e.button === 1) { e.preventDefault(); return; }
+    if (e.button === 1) { e.preventDefault?.(); return; }
     if (e.button === 2) { this.rotating = { x: e.clientX, moved: false }; return; }
     if (e.button !== 0) return;
     const m = this.mode;
@@ -271,7 +356,7 @@ export class Controller {
     }
   }
 
-  private up(e: MouseEvent) {
+  private up(e: PointerLike) {
     if (e.button === 1) return;
     if (e.button === 2) {
       const r = this.rotating;
@@ -353,7 +438,7 @@ export class Controller {
     if (this.keys.has('arrowright')) mx += 1;
     if (this.keys.has('arrowup')) my -= 1;
     if (this.keys.has('arrowdown')) my += 1;
-    if (this.edgeScroll && this.mouseIn && document.hasFocus() && !this.rotating) {
+    if (this.edgeScroll && this.mouseIn && document.hasFocus() && !this.rotating && performance.now() - this.lastTouch > 1000) {
       const m = 6;
       if (this.mouse.x <= m) mx -= 1;
       if (this.mouse.x >= window.innerWidth - m) mx += 1;

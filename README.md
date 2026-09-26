@@ -56,6 +56,12 @@ npm run build      # static build in dist/
 
 `Q W E / A S D` command card (WC3 grid) · `1–4` build tabs · `R` research · `Space` send the wave (sending early pays gold) · `P` pause · `[` `]` speed · `Del` sell · `Esc` cancel/menu · arrow keys, screen edges or middle-drag to pan · right-drag or `,` `.` to rotate · mouse wheel to zoom · `Tab` toggles the route during waves (or hold `Alt`). Right-click a spell button to toggle autocast; left-click casts now. Click a runner to inspect it.
 
+**Touch** (phones and tablets):
+- Tap selects and places. One-finger drag pans the map; in build mode it moves the placement ghost and draws wall lines, and lifting your finger places.
+- Pinch to zoom, twist to rotate, and two-finger drag to pan.
+- Press and hold a command button to read its tooltip. The on-screen ✕ Cancel button stands in for right-click.
+- The layout adapts to portrait and landscape phones. Phones start with lighter graphics settings: lower resolution, no ambient occlusion, fewer dynamic lights, a smaller shadow map and half-size terrain textures.
+
 ## Code layout
 
 ```

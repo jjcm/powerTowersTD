@@ -43,6 +43,9 @@ export class Hud {
   private cardKey = '';
   private cardT = 0;
   private tipBtn: Btn | null = null;
+  private holdT = 0;
+  private tapDismiss = false;
+  private held = false;
   private tipEl!: HTMLElement;
   private msgs!: HTMLElement;
   private floatPool: { el: HTMLElement; x: number; y: number; z: number; t: number; big: boolean }[] = [];
@@ -204,8 +207,27 @@ export class Hud {
       const b = el('div', 'cbtn');
       b.onmouseenter = () => { this.tipBtn = this.buttons[i]; if (this.tipBtn) this.showTip(this.tipBtn.tip()); };
       b.onmouseleave = () => { this.tipBtn = null; this.hideTip(); };
-      // act on press (WC3-style) — also immune to the card re-render swapping the inner nodes mid-click
-      b.onpointerdown = (e) => { if (e.button === 0) { e.preventDefault(); this.press(i); } };
+      // act on press (WC3-style) — also immune to the card re-render swapping the inner nodes mid-click.
+      // Touch: a tap acts, press-and-hold shows the tooltip instead.
+      b.onpointerdown = (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        if (e.pointerType !== 'touch') { this.press(i); return; }
+        this.held = false;
+        clearTimeout(this.holdT);
+        this.holdT = window.setTimeout(() => {
+          this.held = true;
+          this.tipBtn = this.buttons[i];
+          if (this.tipBtn) this.showTip(this.tipBtn.tip());
+        }, 380);
+      };
+      b.onpointerup = (e) => {
+        if (e.pointerType !== 'touch') return;
+        clearTimeout(this.holdT);
+        if (this.held) { window.setTimeout(() => { this.tipBtn = null; this.hideTip(); }, 2200); return; }
+        this.press(i);
+      };
+      b.onpointercancel = () => clearTimeout(this.holdT);
       b.oncontextmenu = (e) => { e.preventDefault(); const bt = this.buttons[i]; if (bt?.alt) { bt.alt(); this.cardKey = ''; } };
       grid.append(b);
     }
@@ -215,6 +237,19 @@ export class Hud {
     ui.append(card);
     this.tipEl = el('div', 'tooltip frame');
     ui.append(this.tipEl);
+    // touch: there's no right-click, so build/link modes get an on-screen Cancel
+    const cancel = el('button', 'btn-cancel frame interactive hidden', '✕ Cancel');
+    cancel.onclick = () => { this.app.sound('ui_click'); this.ctrl.cancel(); };
+    ui.append(cancel);
+    // a tap anywhere dismisses a tooltip that the browser's emulated hover left behind
+    if (!this.tapDismiss) {
+      this.tapDismiss = true;
+      document.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'touch') return;
+        if (this.ctrl) this.ctrl.touchUsed = true;
+        if (!this.held) { this.tipBtn = null; this.hideTip(); }
+      }, true);
+    }
     this.root.append(ui);
 
     Object.assign(this.refs, {
@@ -223,7 +258,7 @@ export class Hud {
       tod: env.querySelector('.tod')!, clock: env.querySelector('.clock')!, wimg: env.querySelector('.wimg')!, wname: env.querySelector('.wname')!,
       nimg: env.querySelector('.nimg')!, nt: env.querySelector('.nt')!, pw: gstats.querySelector('.pw span')!, mn: gstats.querySelector('.mn')!, mz: gstats.querySelector('.mz span')!,
       waveName, send, route, sendT: send.querySelector('.t')!, sendL: send.querySelector('.lbl')!, speed, portrait, pname: pcol.querySelector('.pname')!, bars: pcol.querySelector('.bars')!,
-      tabs, grid, rinfo, hint: status.querySelector('.hint')!, card,
+      tabs, grid, rinfo, hint: status.querySelector('.hint')!, card, cancel,
     });
     this.setSpeed(game.speed);
     this.cardKey = '';
@@ -285,6 +320,7 @@ export class Hud {
     this.refs.sendL.textContent = g.round === 0 ? 'Begin round 1' : 'Send next wave';
     this.refs.sendT.textContent = isFinite(g.buildTimer) ? `${Math.ceil(g.buildTimer)}s` : '';
     this.refs.route.classList.toggle('on', this.ctrl.showRoute);
+    this.refs.cancel.classList.toggle('hidden', !(this.ctrl.touchUsed && this.ctrl.mode.kind !== 'idle'));
     // hint line
     this.refs.hint.innerHTML = this.hint();
     // card

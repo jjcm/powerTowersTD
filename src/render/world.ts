@@ -112,7 +112,8 @@ export class World {
     this.sun.castShadow = true;
     const sc = this.sun.shadow.camera;
     sc.left = -44; sc.right = 44; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 200;
-    this.sun.shadow.mapSize.set(4096, 4096);
+    const phone = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+    this.sun.shadow.mapSize.setScalar(phone ? 2048 : 4096);
     this.sun.shadow.bias = -0.0004;
     this.sun.shadow.normalBias = 0.03;
     this.scene.add(this.sun, this.sun.target);

@@ -30,7 +30,12 @@ const canvas = document.getElementById('game') as HTMLCanvasElement;
 
 const SETTINGS_KEY = 'powertowers.settings';
 const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, edgeScroll: true, autoLink: true, showPath: false, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true };
+// phones start lighter (they can turn things back on in Settings)
+const touchDevice = matchMedia('(pointer: coarse)').matches;
+if (touchDevice) Object.assign(settings, { resolution: 1.25, ao: false, manyLights: false, arcShadows: false, edgeScroll: false });
 try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}')); } catch { /* storage unavailable */ }
+// iOS Safari ignores user-scalable=no; stop its pinch/double-tap page zoom from fighting the camera
+for (const t of ['gesturestart', 'gesturechange']) document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
 
 const assets = new Assets();
 const audio = new Audio();
