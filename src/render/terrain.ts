@@ -247,7 +247,8 @@ const TERRAIN_COMMON = /* glsl */`
   float tnoise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.0-2.0*f);
     return mix(mix(th(i),th(i+vec2(1,0)),u.x), mix(th(i+vec2(0,1)),th(i+vec2(1,1)),u.x), u.y); }
   float tfbm(vec2 p){ return tnoise(p)*0.5 + tnoise(p*2.03+7.1)*0.25 + tnoise(p*4.01-3.3)*0.125 + 0.0625; }
-  void paintL(inout float w[9], int k, float a) { for (int i = 0; i < 9; i++) w[i] *= (1.0 - a); w[k] += a; }
+  #define NL 14
+  void paintL(inout float w[NL], int k, float a) { for (int i = 0; i < NL; i++) w[i] *= (1.0 - a); w[k] += a; }
   vec4 terrData; vec3 terrAlbedo; float terrRock; float terrFrost; float terrHeat; float terrCloud; vec4 terrDmg; float terrUnder;
 `;
 
@@ -261,10 +262,19 @@ const TERRAIN_ALBEDO = /* glsl */`
   float nzL = tfbm(vWPos.xz * 0.075);
   float nzS = tnoise(vWPos.xz * 0.9);
 
-  float w[9];
+  float w[NL];
+  for (int i = 0; i < NL; i++) w[i] = 0.0;
+  // the meadow: five grass types woven together by large drifting patches
+  w[0] = 1.0;
+  float nA = tfbm(vWPos.xz * 0.045 + vec2(11.3, 4.1)), nB = tfbm(vWPos.xz * 0.06 - vec2(4.7, 9.2)), nC = tfbm(vWPos.xz * 0.038 + vec2(27.1, -3.3));
+  paintL(w, 9, smoothstep(0.48, 0.64, nA + (nzS - 0.5) * 0.06));                     // lush
+  paintL(w, 11, smoothstep(0.6, 0.72, nB + (nzS - 0.5) * 0.06) * 0.7);               // clover
+  paintL(w, 13, smoothstep(0.52, 0.66, nC + (nzS - 0.5) * 0.05) * 0.85);             // wildflowers
+  float dryN = tfbm(vWPos.xz * 0.05 + vec2(-17.0, 21.0)) + clamp(vWPos.y * 0.12, -0.05, 0.16);
+  paintL(w, 10, smoothstep(0.64, 0.78, dryN) * 0.55);                                 // sun-dried, likes high ground
   float forestAmt = clamp(smoothstep(0.4, 0.62, nzL + (nzS - 0.5) * 0.08) + sp2.b, 0.0, 1.0);
-  w[0] = 1.0 - forestAmt; w[1] = forestAmt;
-  for (int i = 2; i < 9; i++) w[i] = 0.0;
+  paintL(w, 1, forestAmt);
+  paintL(w, 12, clamp(sp2.b, 0.0, 1.0) * smoothstep(0.42, 0.62, nB + (nzS - 0.5) * 0.1) * 0.7);   // moss under the trees
   paintL(w, 3, clamp(sp1.r * 0.95, 0.0, 1.0));
   paintL(w, 6, sp1.b);
   float trample = terrDmg.r;
@@ -279,37 +289,57 @@ const TERRAIN_ALBEDO = /* glsl */`
   terrRock = smoothstep(0.24, 0.5, slope + (nzS - 0.5) * 0.12);
   paintL(w, 5, terrRock);
 
+  // anti-tiling (after iq's "texture repetition" #3): a slowly varying noise picks one of
+  // eight random tile offsets; neighbouring offsets cross-fade, so no two stretches of ground
+  // repeat even though every layer tiles every 4 units
+  float vk = tnoise(vWPos.xz * 0.09 + vec2(3.1, 7.7)) * 8.0;
+  float vi = floor(vk), vfr = fract(vk);
+  vec2 offA = sin(vec2(3.0, 7.0) * vi) * 7.31;
+  vec2 offB = sin(vec2(3.0, 7.0) * (vi + 1.0)) * 7.31;
+  float vmix = smoothstep(0.25, 0.75, vfr);
+
   // height-based blending: rougher layers poke through smoother ones first
   vec2 tuv = vWPos.xz * 0.25;
   vec2 tdx = dFdx(tuv), tdy = dFdy(tuv);
-  float hts[9]; float vmax = -1.0;
-  for (int i = 0; i < 9; i++) {
-    hts[i] = w[i] > 0.002 ? textureGrad(tData, vec3(tuv, float(i)), tdx, tdy).a : 0.0;
+  float hts[NL]; float vmax = -1.0;
+  for (int i = 0; i < NL; i++) {
+    hts[i] = w[i] > 0.002 ? textureGrad(tData, vec3(tuv + (vmix < 0.5 ? offA : offB), float(i)), tdx, tdy).a : 0.0;
     float v = w[i] > 0.002 ? w[i] + hts[i] * 0.55 : -1.0;
     vmax = max(vmax, v);
   }
-  float b[9]; float bsum = 0.0; float hBlend = 0.0;
-  for (int i = 0; i < 9; i++) {
+  float b[NL]; float bsum = 0.0; float hBlend = 0.0;
+  for (int i = 0; i < NL; i++) {
     float v = w[i] > 0.002 ? w[i] + hts[i] * 0.55 : -1.0;
     b[i] = max(v - (vmax - 0.28), 0.0);
     bsum += b[i];
   }
-  for (int i = 0; i < 9; i++) { b[i] /= max(bsum, 1e-4); hBlend += b[i] * hts[i]; }
+  for (int i = 0; i < NL; i++) { b[i] /= max(bsum, 1e-4); hBlend += b[i] * hts[i]; }
 
   // parallax offset along the view ray
   vec3 Vw = normalize(cameraPosition - vWPos);
   vec2 pOff = -Vw.xz / max(Vw.y, 0.3) * (hBlend - 0.5) * 0.07;
   vec2 puv = (vWPos.xz + pOff) * 0.25;
   vec3 col = vec3(0.0); terrData = vec4(0.0);
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < NL; i++) {
     if (b[i] > 0.001) {
-      col += textureGrad(tColors, vec3(puv, float(i)), tdx, tdy).rgb * b[i];
-      terrData += textureGrad(tData, vec3(puv, float(i)), tdx, tdy) * b[i];
+      float li = float(i);
+      vec3 cA = textureGrad(tColors, vec3(puv + offA, li), tdx, tdy).rgb;
+      vec4 dA = textureGrad(tData, vec3(puv + offA, li), tdx, tdy);
+      if (vmix > 0.001) {
+        vec3 cB = textureGrad(tColors, vec3(puv + offB, li), tdx, tdy).rgb;
+        vec4 dB = textureGrad(tData, vec3(puv + offB, li), tdx, tdy);
+        // bias the seam toward whichever sample is taller, so it follows the texture's shapes
+        float m = clamp(vmix + (dB.a - dA.a) * 0.6, 0.0, 1.0);
+        cA = mix(cA, cB, m); dA = mix(dA, dB, m);
+      }
+      col += cA * b[i];
+      terrData += dA * b[i];
     }
   }
   // macro variation so the meadow never looks tiled
   float macro = mix(0.84, 1.12, nzL) * mix(0.94, 1.05, nzS);
-  col *= mix(vec3(1.0), vec3(macro, macro * 1.02, macro * 0.96), 1.0 - b[5] - b[8]);
+  float hue = tfbm(vWPos.xz * 0.02 + vec2(40.0, 13.0)) - 0.5;          // warm/cool drift over ~50 units
+  col *= mix(vec3(1.0), vec3(macro * (1.0 + hue * 0.12), macro * 1.02, macro * (0.96 - hue * 0.14)), 1.0 - b[5] - b[8]);
   col = mix(col, col * vec3(0.9, 0.72, 1.18) + vec3(0.05, 0.0, 0.1), sp1.g);
   // battle scars
   col *= 1.0 - terrDmg.b * 0.3;

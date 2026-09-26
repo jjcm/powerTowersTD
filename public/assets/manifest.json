@@ -269,6 +269,36 @@
     "water": {
       "color": "assets/textures/water_color.jpg",
       "normal": "assets/textures/water_normal.jpg"
+    },
+    "grass_lush": {
+      "color": "assets/textures/grass_lush_color.jpg",
+      "normal": "assets/textures/grass_lush_normal.jpg",
+      "roughness": "assets/textures/grass_lush_roughness.jpg",
+      "height": "assets/textures/grass_lush_height.jpg"
+    },
+    "grass_dry": {
+      "color": "assets/textures/grass_dry_color.jpg",
+      "normal": "assets/textures/grass_dry_normal.jpg",
+      "roughness": "assets/textures/grass_dry_roughness.jpg",
+      "height": "assets/textures/grass_dry_height.jpg"
+    },
+    "grass_clover": {
+      "color": "assets/textures/grass_clover_color.jpg",
+      "normal": "assets/textures/grass_clover_normal.jpg",
+      "roughness": "assets/textures/grass_clover_roughness.jpg",
+      "height": "assets/textures/grass_clover_height.jpg"
+    },
+    "moss": {
+      "color": "assets/textures/moss_color.jpg",
+      "normal": "assets/textures/moss_normal.jpg",
+      "roughness": "assets/textures/moss_roughness.jpg",
+      "height": "assets/textures/moss_height.jpg"
+    },
+    "grass_wild": {
+      "color": "assets/textures/grass_wild_color.jpg",
+      "normal": "assets/textures/grass_wild_normal.jpg",
+      "roughness": "assets/textures/grass_wild_roughness.jpg",
+      "height": "assets/textures/grass_wild_height.jpg"
     }
   },
   "icons": {

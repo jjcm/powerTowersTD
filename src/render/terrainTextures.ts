@@ -1,17 +1,24 @@
 // Packs the diffui PBR terrain set into two texture arrays so the terrain shader can blend
-// nine full material layers with only two samplers:
+// fourteen full material layers with only two samplers:
 //   colors[i] = albedo (sRGB)
 //   data[i]   = normal.x, normal.y, roughness, height
 import * as THREE from 'three';
 import type { Assets } from './assets';
 
-export const LAYERS = ['grass', 'forest', 'trampled', 'dirt', 'mud', 'rock', 'sand', 'scorched', 'cobble'] as const;
+export const LAYERS = [
+  'grass', 'forest', 'trampled', 'dirt', 'mud', 'rock', 'sand', 'scorched', 'cobble',
+  'grass_lush', 'grass_dry', 'grass_clover', 'moss', 'grass_wild',
+] as const;
 export type LayerId = (typeof LAYERS)[number];
-const SIZE = 1024;
+// phones and low-memory devices get half-resolution layers (a quarter of the memory)
+const lowMem = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches
+  || ((navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8) < 4;
+const SIZE = lowMem ? 512 : 1024;
 
 const FALLBACK: Record<LayerId, [number, number, number]> = {
   grass: [78, 154, 46], forest: [70, 120, 50], trampled: [150, 150, 80], dirt: [138, 106, 68], mud: [80, 62, 44],
   rock: [107, 113, 133], sand: [194, 173, 122], scorched: [58, 46, 36], cobble: [140, 140, 140],
+  grass_lush: [60, 140, 40], grass_dry: [170, 150, 70], grass_clover: [80, 160, 50], moss: [60, 100, 40], grass_wild: [90, 150, 50],
 };
 
 async function pixels(url: string | undefined, fallback: number[]): Promise<Uint8ClampedArray> {
@@ -66,6 +73,8 @@ export function loadTerrainArrays(assets: Assets, anisotropy: number): Promise<T
       t.generateMipmaps = true;
       t.anisotropy = anisotropy;
       t.needsUpdate = true;
+      // the GPU keeps its copy (and builds the mips); drop the ~50 MB CPU-side staging array
+      t.onUpdate = () => { (t.image as { data: Uint8Array | null }).data = null; };
       return t;
     };
     return { colors: mk(colors, true), data: mk(data, false) };

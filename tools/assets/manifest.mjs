@@ -148,6 +148,12 @@ export const TEXTURES = [
   { id: 'scorched', prompt: `burnt scorched earth with black ash, charred grass stubble and a few glowing orange embers, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
   { id: 'cobble', prompt: `worn gray cobblestone paving with moss growing in the cracks, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
   { id: 'water', prompt: 'gentle rippling water surface waves seen from above, clear blue, stylized', maps: ['normal'] },
+  // grass variants, woven together by large noise patches so the meadow never repeats
+  { id: 'grass_lush', prompt: `deep emerald lush meadow grass, long soft blades swirling in varied directions, darker green with light yellow-green tips, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
+  { id: 'grass_dry', prompt: `sun-dried meadow grass, golden and pale straw-yellow blades mixed with olive green, a few seed heads, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
+  { id: 'grass_clover', prompt: `dense carpet of bright green clover leaves and short grass with tiny white and pink clover flowers, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
+  { id: 'moss', prompt: `soft deep green moss carpet with pale green lichen patches, tiny ferns and a few small gray stones, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
+  { id: 'grass_wild', prompt: `green wildflower meadow grass sprinkled with tiny purple, yellow and white flowers, ${TEX_STYLE}`, maps: ['normal', 'roughness', 'height'] },
 ];
 
 const CLUTTER_STYLE = 'Stylized hand-painted high-fantasy RTS game ground detail sprite, rich saturated colors, crisp silhouette, centered with margin, isolated on a transparent background, no ground, no shadow.';
