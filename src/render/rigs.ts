@@ -421,3 +421,136 @@ export class TurretRig {
     }
   }
 }
+
+// ------------------------------------------------------------------ simple part rigs
+// Other towers get one moving part: everything above a height cut (optionally within a radius
+// of the tower axis) is split off and animated: floating crystals bob and spin, water orbs
+// swirl, tentacled tops sway, the vine trap's maw snaps, solar panels track the sun.
+
+export type PartMotion = 'float' | 'spin' | 'sway' | 'chomp' | 'track';
+export interface PartRigConfig { split: number; motion: PartMotion; maxR?: number; amp?: number; spin?: number }
+
+export const PART_RIGS: Record<string, PartRigConfig> = {
+  pylon: { split: 0.8, motion: 'float', amp: 0.05, spin: 0.9 },
+  ley_obelisk: { split: 0.74, motion: 'float', amp: 0.06, spin: 0.5 },
+  lich_tower: { split: 0.8, motion: 'float', amp: 0.04, spin: 0.6, maxR: 0.25 },
+  tesla_coil: { split: 0.84, motion: 'float', amp: 0.025, spin: 0.35, maxR: 0.3 },
+  tsunami_tower: { split: 0.66, motion: 'spin', spin: 1.1, maxR: 0.4 },
+  dark_tower: { split: 0.6, motion: 'sway', amp: 0.07 },
+  swarm_tower: { split: 0.8, motion: 'sway', amp: 0.04 },
+  vine_trap: { split: 0.36, motion: 'chomp', amp: 0.06 },
+  solar_panel: { split: 0.42, motion: 'track' },
+};
+
+interface PartTemplate { base: PartGeo[]; top: PartGeo[]; pivot: THREE.Vector3; height: number }
+const partCache = new Map<string, PartTemplate | null>();
+
+function buildPart(template: THREE.Object3D, cfg: PartRigConfig): PartTemplate | null {
+  const meshes = collect(template);
+  if (!meshes.length) return null;
+  let minY = Infinity, maxY = -Infinity;
+  for (const m of meshes) for (let i = 1; i < m.cent.length; i += 3) { minY = Math.min(minY, m.cent[i]); maxY = Math.max(maxY, m.cent[i]); }
+  const H = maxY - minY;
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const m of meshes) for (let i = 0; i < m.cent.length; i += 3) {
+    const y = (m.cent[i + 1] - minY) / H;
+    if (y > 0.1 && y < 0.35) { x0 = Math.min(x0, m.cent[i]); x1 = Math.max(x1, m.cent[i]); z0 = Math.min(z0, m.cent[i + 2]); z1 = Math.max(z1, m.cent[i + 2]); }
+  }
+  const ax = (x0 + x1) / 2, az = (z0 + z1) / 2;
+  const base: PartGeo[] = [], top: PartGeo[] = [];
+  let n = 0;
+  for (const m of meshes) {
+    const lists: [number[], number[]] = [[], []];
+    const tri = m.cent.length / 3;
+    for (let t = 0; t < tri; t++) {
+      const y = (m.cent[t * 3 + 1] - minY) / H;
+      const r = Math.hypot(m.cent[t * 3] - ax, m.cent[t * 3 + 2] - az) / H;
+      const isTop = y > cfg.split && r < (cfg.maxR ?? 9);
+      lists[isTop ? 1 : 0].push(m.index[t * 3], m.index[t * 3 + 1], m.index[t * 3 + 2]);
+      if (isTop) n++;
+    }
+    lists.forEach((list, k) => {
+      if (!list.length) return;
+      const g = new THREE.BufferGeometry();
+      for (const [key, a] of Object.entries(m.mesh.geometry.attributes)) g.setAttribute(key, a);
+      g.setIndex(list);
+      g.boundingSphere = m.mesh.geometry.boundingSphere?.clone() ?? null;
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      (k ? top : base).push({ name: k ? 'turret' : 'base', geometry: g, material: m.mesh.material, matrix: m.M });
+    });
+  }
+  if (!n) return null;
+  return { base, top, pivot: new THREE.Vector3(ax, minY + cfg.split * H, az), height: H };
+}
+
+export function partTemplate(id: string, template: THREE.Object3D, procedural: boolean): PartTemplate | null {
+  const cfg = PART_RIGS[id];
+  if (!cfg || procedural) return null;
+  if (!partCache.has(id)) partCache.set(id, buildPart(template, cfg));
+  return partCache.get(id)!;
+}
+
+export class PartRig {
+  root = new THREE.Group();
+  private top = new THREE.Group();
+  private lastFire = -1;
+  private pulse = new Spring(0, 220, 12);
+  private phase = Math.random() * 10;
+  private aimYaw = Math.random() * 6;
+
+  constructor(private tpl: PartTemplate, private cfg: PartRigConfig, explode = 0) {
+    for (const p of tpl.base) {
+      const mesh = new THREE.Mesh(p.geometry, p.material);
+      mesh.matrixAutoUpdate = false; mesh.matrix.copy(p.matrix);
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      this.root.add(mesh);
+    }
+    this.top.position.copy(tpl.pivot);
+    this.top.position.y += explode;
+    for (const p of tpl.top) {
+      const mesh = new THREE.Mesh(p.geometry, p.material);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.copy(new THREE.Matrix4().makeTranslation(-tpl.pivot.x, -tpl.pivot.y, -tpl.pivot.z).multiply(p.matrix));
+      mesh.castShadow = true; mesh.receiveShadow = true;
+      this.top.add(mesh);
+    }
+    this.root.add(this.top);
+  }
+
+  update(dt: number, s: Structure, time: number, sunDir?: THREE.Vector3) {
+    if (s.lastFire !== this.lastFire) { if (this.lastFire !== -1) this.pulse.v += 3.5; this.lastFire = s.lastFire; }
+    const p = this.pulse.step(0, dt);
+    const c = this.cfg, t = time + this.phase, H = this.tpl.height, amp = (c.amp ?? 0.04) * H;
+    const top = this.top;
+    const y0 = this.tpl.pivot.y;
+    switch (c.motion) {
+      case 'float':
+        top.position.y = y0 + (Math.sin(t * 1.6) * 0.5 + 0.5) * amp + p * 0.04 * H;
+        top.rotation.y += dt * (c.spin ?? 0.6) * (1 + p * 3);
+        top.scale.setScalar(1 + p * 0.08);
+        break;
+      case 'spin':
+        top.rotation.y += dt * (c.spin ?? 1) * (1 + p * 2);
+        top.position.y = y0 + Math.sin(t * 1.2) * 0.01 * H;
+        top.scale.setScalar(1 + p * 0.06);
+        break;
+      case 'sway':
+        top.rotation.x = Math.sin(t * 0.9) * (c.amp ?? 0.05) + p * 0.05;
+        top.rotation.z = Math.sin(t * 0.7 + 1.3) * (c.amp ?? 0.05);
+        break;
+      case 'chomp':
+        // a hungry plant: idle sway, and a lunge-and-snap when it bites
+        top.rotation.x = Math.sin(t * 1.1) * (c.amp ?? 0.05) - p * 0.25;
+        top.rotation.z = Math.sin(t * 0.8 + 2) * (c.amp ?? 0.05) * 0.7;
+        top.scale.set(1 + p * 0.06, 1 - p * 0.12, 1 + p * 0.06);
+        break;
+      case 'track': {
+        // panels turn toward the sun (slowly), and droop at night
+        if (sunDir && sunDir.y > 0.05) this.aimYaw += Math.atan2(Math.sin(Math.atan2(sunDir.x, sunDir.z) - this.aimYaw), Math.cos(Math.atan2(sunDir.x, sunDir.z) - this.aimYaw)) * Math.min(1, dt * 0.4);
+        top.rotation.y = this.aimYaw - (this.root.parent?.rotation.y ?? 0);
+        top.rotation.x = sunDir ? THREE.MathUtils.lerp(top.rotation.x, sunDir.y > 0.05 ? -(Math.PI / 2 - Math.asin(Math.min(1, sunDir.y))) * 0.35 : 0.25, Math.min(1, dt)) : 0;
+        break;
+      }
+    }
+  }
+}

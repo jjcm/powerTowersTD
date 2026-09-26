@@ -17,6 +17,10 @@ interface View {
   shield?: THREE.Mesh;
   roots?: THREE.Mesh;
   dying: number;       // seconds since death, -1 alive
+  yaw?: number;        // smoothed heading
+  lean?: number;       // bank into turns
+  fl?: number; flv?: number; lastHit?: number;   // hit flinch spring
+  baseScale: THREE.Vector3;
   leaked: boolean;
   x: number; z: number; y: number;
   height: number;
@@ -46,7 +50,7 @@ export class RunnerViews {
       m.material = Array.isArray(m.material) ? cloned : cloned[0];
       mats.push(...cloned);
     });
-    const v: View = { r, group, model: object, mats, baseEmissive: mats.map((m) => m.emissive?.clone() ?? new THREE.Color()), dying: -1, leaked: false, x: r.x, z: r.z, y: 0, height, bob: Math.random() * 10 };
+    const v: View = { r, group, model: object, mats, baseEmissive: mats.map((m) => m.emissive?.clone() ?? new THREE.Color()), dying: -1, leaked: false, x: r.x, z: r.z, y: 0, height, bob: Math.random() * 10, baseScale: object.scale.clone() };
     if (rigged && clips.length) {
       v.mixer = new THREE.AnimationMixer(object);
       const find = (re: RegExp) => clips.find((c) => re.test(c.name));
@@ -126,7 +130,15 @@ export class RunnerViews {
       v.bob += dt;
       const fly = r.type.flying ? 0.55 + Math.sin(v.bob * 3) * 0.12 : 0;
       v.group.position.set(v.x, ground + fly, v.z);
-      v.group.rotation.y = r.heading;
+      // turn smoothly (no snapping at path corners) and bank into the turn
+      if (v.yaw === undefined) v.yaw = r.heading;
+      let dh = r.heading - v.yaw;
+      while (dh > Math.PI) dh -= Math.PI * 2;
+      while (dh < -Math.PI) dh += Math.PI * 2;
+      const turn = dh * (1 - Math.exp(-dt * 11));
+      v.yaw += turn;
+      v.group.rotation.y = v.yaw;
+      v.lean = (v.lean ?? 0) + ((-turn / Math.max(dt, 1e-3)) * 0.05 - (v.lean ?? 0)) * Math.min(1, dt * 8);
       if (!v.mixer) {
         // procedural gait for unrigged creatures
         const sp = r.moving ? 1 : 0.2;
@@ -141,7 +153,18 @@ export class RunnerViews {
         v.current!.timeScale = r.moving ? Math.max(0.3, (speed / nominal) * (1.15 / v.height) * 1.1) : 0.05;
         v.mixer.update(dt);
       }
-      if (r.knock > 0) v.model.rotation.x = -r.knock * 1.2; else if (v.mixer) v.model.rotation.x = 0;
+      // hits land: a squash-and-jolt spring kicked by each fresh hit flash
+      const hitNow = r.hitFlash;
+      if (hitNow > (v.lastHit ?? 0) + 0.2) v.flv = (v.flv ?? 0) + 7;
+      v.lastHit = hitNow;
+      v.flv = (v.flv ?? 0) + (-(v.fl ?? 0) * 260 - (v.flv ?? 0) * 16) * dt;
+      v.fl = (v.fl ?? 0) + v.flv * dt;
+      const fl = v.fl;
+      const bs = v.baseScale;
+      v.model.scale.set(bs.x * (1 + fl * 0.05), bs.y * (1 - fl * 0.09), bs.z * (1 + fl * 0.05));
+      if (r.knock > 0) v.model.rotation.x = -r.knock * 1.2;
+      else if (v.mixer) v.model.rotation.x = -fl * 0.18;
+      if (v.mixer) v.model.rotation.z = THREE.MathUtils.clamp(v.lean ?? 0, -0.18, 0.18) + (r.stunT > 0 ? Math.sin(v.bob * 9) * 0.12 : 0);
       // status tints
       const frozen = r.slowT > 0 && r.slowAmt > 0.3;
       const cursed = r.curseT > 0 || r.vulnT > 0;

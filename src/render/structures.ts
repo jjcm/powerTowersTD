@@ -6,10 +6,11 @@ import { ChunkedInstances } from './instanced';
 import type { LightPool } from './lights';
 import type { TerrainView } from './terrain';
 import { glowTexture } from './textures';
-import { rigTemplate, TurretRig } from './rigs';
+import { rigTemplate, TurretRig, partTemplate, PartRig, PART_RIGS } from './rigs';
 
 interface View {
   rig?: TurretRig;
+  part?: PartRig;
   status?: THREE.Sprite;
   statusKey?: string;
   s: Structure;
@@ -29,6 +30,8 @@ const ROTATES = new Set(['ballista', 'cannon']);
 export class StructureViews {
   group = new THREE.Group();
   views = new Map<number, View>();
+  /** World sun direction (solar panels track it). */
+  sunDir = new THREE.Vector3(0, 1, 0);
   private posts: ChunkedInstances;
   private spans: ChunkedInstances;
   private heightAt: (x: number, z: number) => number;
@@ -58,7 +61,10 @@ export class StructureViews {
     let rig: TurretRig | undefined;
     const tpl = this.assets.get(s.def.model);
     const rt = ROTATES.has(s.def.id) ? rigTemplate(s.def.id as 'ballista' | 'cannon', tpl.root, tpl.procedural) : null;
+    let part: PartRig | undefined;
+    const pt = rt ? null : partTemplate(s.def.id, tpl.root, tpl.procedural);
     if (rt) { rig = new TurretRig(rt, s.aim); object = rig.root; }
+    else if (pt) { part = new PartRig(pt, PART_RIGS[s.def.id]); object = part.root; }
     else object = this.assets.instantiate(s.def.model).object;
     group.add(object);
     group.position.set(s.cx, this.terrain.footprintBase(s.x, s.z, s.def.size) + this.baseOffset(s), s.cz);
@@ -71,7 +77,7 @@ export class StructureViews {
     glow.scale.setScalar(s.def.size === 1 ? 1.2 : 1.8);
     group.add(glow);
     this.group.add(group);
-    this.views.set(s.id, { s, group, model: object, glow, glowY, born: this.time, level: s.level, height, pulse: 0, rig });
+    this.views.set(s.id, { s, group, model: object, glow, glowY, born: this.time, level: s.level, height, pulse: 0, rig, part });
     if (s.def.size === 1) this.wallsDirty = true; // pylons/obelisks connect to walls
   }
 
@@ -136,6 +142,8 @@ export class StructureViews {
         const dist = tgt ? Math.hypot(tgt.x - s.cx, tgt.z - s.cz) : this.game.range(s) * 0.6;
         const cd = (s.poweredGlow > 0.2 ? a.poweredCooldown ?? a.cooldown : a.cooldown) / Math.max(1, this.game.speed);
         v.rig.update(dt, s, this.game.time, this.game.range(s), dist, cd);
+      } else if (v.part) {
+        v.part.update(dt, s, this.game.time, this.sunDir);
       } else if (ROTATES.has(s.def.id)) {
         // fallback art: rotate the whole model
         let diff = s.aim - v.model.rotation.y;
@@ -147,7 +155,7 @@ export class StructureViews {
       const cap = this.game.energyCap(s) || this.game.manaCap(s);
       const fill = cap ? (s.energy + s.mana) / cap : 0;
       let op = 0.08 + Math.min(1, fill) * 0.25 + s.poweredGlow * 0.6;
-      if (s.def.source) op = 0.12 + Math.min(1, s.producing / 8 + fill * 0.3) * 0.5;
+      if (s.def.source) op = 0.1 + Math.min(1, s.producing / 8 + fill * 0.3) * 0.3;   // generators hum, they don't blaze
       if (s.overheated > 0) op = 0.8 + Math.sin(t * 20) * 0.2;
       if (s.disabled > 0) op = Math.random() < 0.3 ? 0.9 : 0.05;
       // the link-point glow is kept soft; overcharged towers get the full blaze

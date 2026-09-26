@@ -373,6 +373,8 @@ export class Effects {
         const p = P(e.x, 0.6 + this.gh(e.x, e.z), e.z);
         this.burst(p, 0x6a8a3a, 10, 2.5, 0.25, 0.7, this.norm, 6);
         this.burst(p, 0xffd24a, 6, 2, 0.18, 0.6, this.add, 4);
+        // a few pale wisps drift up from the body
+        for (let i = 0; i < 3; i++) this.add.emit({ x: e.x + (Math.random() - 0.5) * 0.4, y: p.y + Math.random() * 0.3, z: e.z + (Math.random() - 0.5) * 0.4, vx: (Math.random() - 0.5) * 0.3, vy: 0.9 + Math.random() * 0.6, vz: (Math.random() - 0.5) * 0.3, color: 0xcfe8ff, size: 0.45 + Math.random() * 0.25, life: 1.1 + Math.random() * 0.5, drag: 0.6 });
         D.stamp(e.x, e.z, 0.55, { trample: 0.14 });
         break;
       }
@@ -497,7 +499,13 @@ export class Effects {
       case 'light': this.burst(p, 0xfff08a, 10, 2.5, 0.35, 0.4, this.add); L.flash(x, p.y + 0.3, z, 0xffe08a, 10, 4.5, 0.25); break;
       case 'arcane': this.burst(p, 0x9a8aff, 16, 3.5, 0.45, 0.5, this.add); L.flash(x, p.y + 0.3, z, 0x9a8aff, 16, 5, 0.3); D.stamp(x, z, 0.5, { scorch: 0.05 }); break;
       case 'spark': this.burst(p, 0x9fe8ff, 10, 3, 0.3, 0.3, this.add); L.flash(x, p.y + 0.2, z, 0x9fe8ff, 12, 4.5, 0.2, true); break;
-      case 'bolt': this.burst(p, 0xd8c8a0, 5, 2, 0.15, 0.3, this.norm, 5); D.stamp(x, z, 0.3, { trample: 0.04 }); break;
+      case 'bolt':
+        // the bolt strikes: bright chips flying, grit kicked up, a quick glint
+        this.burst(p, 0xfff0c8, powered ? 10 : 6, 5, 0.1, 0.18, this.add, 9);
+        this.burst(p, 0xd8c8a0, 6, 2, 0.16, 0.35, this.norm, 5);
+        L.flash(x, p.y + 0.1, z, 0xffe0b0, powered ? 6 : 3.5, 2.5, 0.1);
+        D.stamp(x, z, 0.3, { trample: 0.04 });
+        break;
     }
   }
 

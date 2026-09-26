@@ -22,6 +22,7 @@ import { setWindTime, type Simplify } from './render/instanced';
 import { Atmosphere } from './render/atmosphere';
 import { ShoreLife } from './render/shore';
 import { Decor } from './render/decor';
+import { PartRig, partTemplate, PART_RIGS } from './render/rigs';
 import { Controller } from './input/controller';
 import { Hud, type AppHooks } from './ui/hud';
 import { Audio } from './audio';
@@ -216,6 +217,7 @@ function tick(dt: number) {
 
   s.fx.selectedId = s.ctrl.selected?.id ?? -1;
   s.sv.sync();
+  s.sv.sunDir.copy(world.sunDir);
   s.sv.update(dt);
   s.rv.update(dt);
   s.ctrl.update(dt);
@@ -309,7 +311,7 @@ async function boot() {
   hud.setLoading(1, 1);
   // debug hooks for automated testing
   (window as unknown as Record<string, unknown>).__pt = {
-    get session() { return session; }, world, hooks, assets, THREE, hud, audio,
+    get session() { return session; }, world, hooks, assets, THREE, hud, audio, rigs: { PartRig, partTemplate, PART_RIGS },
     /** Run the frame logic manually (for automated testing when rAF is throttled). */
     advance(seconds: number, step = 1 / 30) { for (let t = 0; t < seconds; t += step) tick(step); },
     /** Fast-forward the simulation (no rendering) including ground wear and effects bookkeeping. */
