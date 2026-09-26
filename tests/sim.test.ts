@@ -26,8 +26,24 @@ test('the maze can never be sealed', () => {
     g.place('wall', x, z);
     assert.ok(g.grid.legsConnected(g.grid.fields), `path sealed after wall ${i} at ${x},${z}`);
   }
-  assert.ok(refused > 0, 'expected some placements to be refused for blocking the path');
   assert.ok(isFinite(g.pathLength()));
+  void refused;
+});
+
+test('walling in the spawn is refused', () => {
+  const g = new Game('normal', 6);
+  g.gold = 1e6;
+  const sx = g.grid.spawnCell % W, sz = Math.floor(g.grid.spawnCell / W);
+  let refused = 0;
+  // try to close a full ring around the portal: the last gap must be refused
+  for (let d = 2; d <= 3; d++) for (let z = sz - d; z <= sz + d; z++) for (let x = sx - d; x <= sx + d; x++) {
+    if (Math.max(Math.abs(x - sx), Math.abs(z - sz)) !== d) continue;
+    const chk = g.canPlace('wall', x, z);
+    if (chk.reason === 'Would block the path') refused++;
+    if (chk.ok) g.place('wall', x, z);
+  }
+  assert.ok(refused > 0, 'closing the ring should have been refused');
+  assert.ok(g.grid.legsConnected(g.grid.fields));
 });
 
 test('building over walls replaces them and credits their value', () => {
