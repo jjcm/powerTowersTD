@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Game } from './game/sim';
 import type { Difficulty } from './game/data/runners';
 import { STRUCTURES } from './game/data/structures';
-import { RUNNERS } from './game/data/runners';
+import { RUNNERS, buildWave } from './game/data/runners';
 import { Assets } from './render/assets';
 import { World } from './render/world';
 import { TerrainView } from './render/terrain';
@@ -314,14 +314,21 @@ async function boot() {
   hud.showTitle(true);
   await assets.init();
   hud.showTitle(true);
-  const ids = new Set<string>(['wall_post', 'wall_span', 'pine_tree', 'fir_tree', 'rock_cluster', 'cliff_rock', 'brazier', 'ley_crystal', 'castle_gate', 'spawn_portal', 'whelp']);
-  for (const d of Object.values(STRUCTURES)) ids.add(d.model);
-  for (const r of Object.values(RUNNERS)) ids.add(r.model);
+  // Load what the first minutes need (scenery, the basic towers, the first waves' runners);
+  // everything else streams in behind the game and swaps in when it lands.
+  const early = new Set<string>(['wall_post', 'wall_span', 'pine_tree', 'fir_tree', 'rock_cluster', 'cliff_rock', 'brazier', 'ley_crystal', 'castle_gate', 'spawn_portal', 'whelp']);
+  for (const id of ['wall', 'pylon', 'furnace', 'water_wheel', 'solar_panel', 'capacitor', 'ballista', 'cannon', 'tesla_coil'] as const) early.add(STRUCTURES[id].model);
+  for (let r = 1; r <= 6; r++) for (const gr of buildWave(r, () => 0.5).groups) early.add(RUNNERS[gr.type].model);
+  const all = new Set<string>(early);
+  for (const d of Object.values(STRUCTURES)) all.add(d.model);
+  for (const r of Object.values(RUNNERS)) all.add(r.model);
+  const late = [...all].filter((id) => !early.has(id));
   let texDone = 0;
   const texP = loadTerrainArrays(assets, assets.maxAnisotropy).then(() => { texDone = 1; });
-  await assets.loadAll([...ids], (d, t) => hud.setLoading(d, t + 1 - texDone));
+  await assets.loadAll([...early], (d, t) => hud.setLoading(d, t + 1 - texDone));
   await texP;
   hud.setLoading(1, 1);
+  for (const id of late) void assets.load(id).then(() => session?.sv.refreshModel(id));
   // debug hooks for automated testing
   (window as unknown as Record<string, unknown>).__pt = {
     get session() { return session; }, world, hooks, assets, THREE, hud, audio, rigs: { PartRig, partTemplate, PART_RIGS },

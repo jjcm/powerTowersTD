@@ -404,7 +404,9 @@ async function cmdOptimize(ids) {
     }
     if (!src || !fs.existsSync(src)) continue;
     const out = path.join(PUB, 'models', `${m.id}.glb`);
-    const size = m.textureSize ?? (m.kind === 'structure' ? 1024 : 1024);
+    // towers and the big landmarks get 1024 textures; runners, creatures and small props are a few
+    // dozen pixels on screen, so 512 halves their download without a visible difference
+    const size = m.textureSize ?? (m.kind === 'structure' || m.id === 'castle_gate' || m.id === 'spawn_portal' ? 1024 : 512);
     const args = ['gltf-transform', 'optimize', src, out, '--compress', 'meshopt', '--texture-compress', 'webp',
       '--texture-size', String(size), '--simplify', 'false', '--palette', 'false', '--instance', 'false'];
     if (m.rig) args.push('--flatten', 'false', '--join', 'false');
@@ -413,10 +415,29 @@ async function cmdOptimize(ids) {
     patch(m.id, { optimized: { file: path.relative(ROOT, out), kb, rigged: !!s.rig?.done } });
     log('optimized', m.id, `${kb}KB`);
   }
-  writeRuntimeManifest();
+  await writeRuntimeManifest();
 }
 
-function writeRuntimeManifest() {
+/**
+ * Ship WebP: keep the JPEG/PNG source out of public/ (in raw/web_src) and write a WebP next to
+ * where it was. Colour/normal maps stay at 1024; roughness/height drop to 512 (the terrain
+ * loader resamples everything to one size anyway). Returns the public WebP path.
+ */
+async function webp(pubDir, name, ext, { size, quality }) {
+  const srcDir = path.join(RAW, 'web_src', path.basename(pubDir));
+  fs.mkdirSync(srcDir, { recursive: true });
+  const pub = path.join(pubDir, `${name}.${ext}`), src = path.join(srcDir, `${name}.${ext}`), out = path.join(pubDir, `${name}.webp`);
+  if (fs.existsSync(pub)) fs.renameSync(pub, src);
+  if (!fs.existsSync(src)) return null;
+  if (!fs.existsSync(out) || fs.statSync(out).mtimeMs < fs.statSync(src).mtimeMs) {
+    let img = sharp(src);
+    if (size) img = img.resize(size, size);
+    await img.webp({ quality, alphaQuality: 92, effort: 5 }).toFile(out);
+  }
+  return out;
+}
+
+async function writeRuntimeManifest() {
   const state = readState();
   const models = {};
   for (const m of MODELS) {
@@ -426,7 +447,13 @@ function writeRuntimeManifest() {
   const textures = {};
   for (const t of TEXTURES) {
     const s = state['tex_' + t.id];
-    if (s?.done) textures[t.id] = { color: `assets/textures/${t.id}_color.jpg`, ...Object.fromEntries((s.maps ?? []).map((k) => [k, `assets/textures/${t.id}_${k}.jpg`])) };
+    if (!s?.done) continue;
+    const entry = {};
+    for (const k of ['color', ...(s.maps ?? [])]) {
+      const opts = k === 'roughness' || k === 'height' ? { size: 512, quality: 80 } : { size: 1024, quality: k === 'normal' ? 90 : 84 };
+      if (await webp(path.join(PUB, 'textures'), `${t.id}_${k}`, 'jpg', opts)) entry[k] = `assets/textures/${t.id}_${k}.webp`;
+    }
+    textures[t.id] = entry;
   }
   const icons = {};
   for (const i of ICONS) if (fs.existsSync(path.join(PUB, 'icons', `${i.id}.webp`))) icons[i.id] = `assets/icons/${i.id}.webp`;
@@ -435,7 +462,7 @@ function writeRuntimeManifest() {
   const ui = {};
   for (const h of [...HUD_ICONS, ...ART]) if (fs.existsSync(path.join(PUB, 'ui', `${h.id}.webp`))) ui[h.id] = `assets/ui/${h.id}.webp`;
   for (const h of SPRITES) if (fs.existsSync(path.join(PUB, 'ui', `${h.id}.png`))) ui[h.id] = `assets/ui/${h.id}.png`;
-  for (const a of ['clutter_flat', 'clutter_upright', 'water_decals', 'decor_atlas']) if (fs.existsSync(path.join(PUB, 'ui', `${a}.png`))) ui[a] = `assets/ui/${a}.png`;
+  for (const a of ['clutter_flat', 'clutter_upright', 'water_decals', 'decor_atlas']) if (await webp(path.join(PUB, 'ui'), a, 'png', { quality: 90 })) ui[a] = `assets/ui/${a}.webp`;
   fs.writeFileSync(path.join(PUB, 'manifest.json'), JSON.stringify({ models, textures, icons, portraits, ui }, null, 2));
   log('wrote public/assets/manifest.json');
 }
@@ -490,7 +517,7 @@ switch (cmd) {
   case 'models': await balance(); await cmdModels(ids); await balance(); break;
   case 'rig': await cmdRig(ids); await balance(); break;
   case 'optimize': await cmdOptimize(ids); break;
-  case 'manifest': writeRuntimeManifest(); break;
+  case 'manifest': await writeRuntimeManifest(); break;
   case 'sheet': await cmdSheet(ids); break;
   case 'balance': await balance(); break;
   case 'redo-concept': {

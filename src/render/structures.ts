@@ -102,6 +102,18 @@ export class StructureViews {
     return Math.atan2(wx, wz);
   }
 
+  /** A model finished streaming in: rebuild the views that were showing its placeholder. */
+  refreshModel(modelId: string) {
+    for (const [id, v] of [...this.views]) {
+      if (v.s.def.model !== modelId) continue;
+      const born = v.born;
+      this.remove(id);
+      this.add(v.s);
+      const nv = this.views.get(id);
+      if (nv) nv.born = born;          // no second build-rise animation
+    }
+  }
+
   remove(id: number) {
     const v = this.views.get(id);
     if (!v) return;

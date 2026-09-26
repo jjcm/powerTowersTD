@@ -213,104 +213,104 @@
   },
   "textures": {
     "grass": {
-      "color": "assets/textures/grass_color.jpg",
-      "normal": "assets/textures/grass_normal.jpg",
-      "roughness": "assets/textures/grass_roughness.jpg",
-      "height": "assets/textures/grass_height.jpg"
+      "color": "assets/textures/grass_color.webp",
+      "normal": "assets/textures/grass_normal.webp",
+      "roughness": "assets/textures/grass_roughness.webp",
+      "height": "assets/textures/grass_height.webp"
     },
     "forest": {
-      "color": "assets/textures/forest_color.jpg",
-      "normal": "assets/textures/forest_normal.jpg",
-      "roughness": "assets/textures/forest_roughness.jpg",
-      "height": "assets/textures/forest_height.jpg"
+      "color": "assets/textures/forest_color.webp",
+      "normal": "assets/textures/forest_normal.webp",
+      "roughness": "assets/textures/forest_roughness.webp",
+      "height": "assets/textures/forest_height.webp"
     },
     "trampled": {
-      "color": "assets/textures/trampled_color.jpg",
-      "normal": "assets/textures/trampled_normal.jpg",
-      "roughness": "assets/textures/trampled_roughness.jpg",
-      "height": "assets/textures/trampled_height.jpg"
+      "color": "assets/textures/trampled_color.webp",
+      "normal": "assets/textures/trampled_normal.webp",
+      "roughness": "assets/textures/trampled_roughness.webp",
+      "height": "assets/textures/trampled_height.webp"
     },
     "dirt": {
-      "color": "assets/textures/dirt_color.jpg",
-      "normal": "assets/textures/dirt_normal.jpg",
-      "roughness": "assets/textures/dirt_roughness.jpg",
-      "height": "assets/textures/dirt_height.jpg"
+      "color": "assets/textures/dirt_color.webp",
+      "normal": "assets/textures/dirt_normal.webp",
+      "roughness": "assets/textures/dirt_roughness.webp",
+      "height": "assets/textures/dirt_height.webp"
     },
     "mud": {
-      "color": "assets/textures/mud_color.jpg",
-      "normal": "assets/textures/mud_normal.jpg",
-      "roughness": "assets/textures/mud_roughness.jpg",
-      "height": "assets/textures/mud_height.jpg"
+      "color": "assets/textures/mud_color.webp",
+      "normal": "assets/textures/mud_normal.webp",
+      "roughness": "assets/textures/mud_roughness.webp",
+      "height": "assets/textures/mud_height.webp"
     },
     "rock": {
-      "color": "assets/textures/rock_color.jpg",
-      "normal": "assets/textures/rock_normal.jpg",
-      "roughness": "assets/textures/rock_roughness.jpg",
-      "height": "assets/textures/rock_height.jpg"
+      "color": "assets/textures/rock_color.webp",
+      "normal": "assets/textures/rock_normal.webp",
+      "roughness": "assets/textures/rock_roughness.webp",
+      "height": "assets/textures/rock_height.webp"
     },
     "sand": {
-      "color": "assets/textures/sand_color.jpg",
-      "normal": "assets/textures/sand_normal.jpg",
-      "roughness": "assets/textures/sand_roughness.jpg",
-      "height": "assets/textures/sand_height.jpg"
+      "color": "assets/textures/sand_color.webp",
+      "normal": "assets/textures/sand_normal.webp",
+      "roughness": "assets/textures/sand_roughness.webp",
+      "height": "assets/textures/sand_height.webp"
     },
     "scorched": {
-      "color": "assets/textures/scorched_color.jpg",
-      "normal": "assets/textures/scorched_normal.jpg",
-      "roughness": "assets/textures/scorched_roughness.jpg",
-      "height": "assets/textures/scorched_height.jpg"
+      "color": "assets/textures/scorched_color.webp",
+      "normal": "assets/textures/scorched_normal.webp",
+      "roughness": "assets/textures/scorched_roughness.webp",
+      "height": "assets/textures/scorched_height.webp"
     },
     "cobble": {
-      "color": "assets/textures/cobble_color.jpg",
-      "normal": "assets/textures/cobble_normal.jpg",
-      "roughness": "assets/textures/cobble_roughness.jpg",
-      "height": "assets/textures/cobble_height.jpg"
+      "color": "assets/textures/cobble_color.webp",
+      "normal": "assets/textures/cobble_normal.webp",
+      "roughness": "assets/textures/cobble_roughness.webp",
+      "height": "assets/textures/cobble_height.webp"
     },
     "water": {
-      "color": "assets/textures/water_color.jpg",
-      "normal": "assets/textures/water_normal.jpg"
+      "color": "assets/textures/water_color.webp",
+      "normal": "assets/textures/water_normal.webp"
     },
     "grass_lush": {
-      "color": "assets/textures/grass_lush_color.jpg",
-      "normal": "assets/textures/grass_lush_normal.jpg",
-      "roughness": "assets/textures/grass_lush_roughness.jpg",
-      "height": "assets/textures/grass_lush_height.jpg"
+      "color": "assets/textures/grass_lush_color.webp",
+      "normal": "assets/textures/grass_lush_normal.webp",
+      "roughness": "assets/textures/grass_lush_roughness.webp",
+      "height": "assets/textures/grass_lush_height.webp"
     },
     "grass_dry": {
-      "color": "assets/textures/grass_dry_color.jpg",
-      "normal": "assets/textures/grass_dry_normal.jpg",
-      "roughness": "assets/textures/grass_dry_roughness.jpg",
-      "height": "assets/textures/grass_dry_height.jpg"
+      "color": "assets/textures/grass_dry_color.webp",
+      "normal": "assets/textures/grass_dry_normal.webp",
+      "roughness": "assets/textures/grass_dry_roughness.webp",
+      "height": "assets/textures/grass_dry_height.webp"
     },
     "grass_clover": {
-      "color": "assets/textures/grass_clover_color.jpg",
-      "normal": "assets/textures/grass_clover_normal.jpg",
-      "roughness": "assets/textures/grass_clover_roughness.jpg",
-      "height": "assets/textures/grass_clover_height.jpg"
+      "color": "assets/textures/grass_clover_color.webp",
+      "normal": "assets/textures/grass_clover_normal.webp",
+      "roughness": "assets/textures/grass_clover_roughness.webp",
+      "height": "assets/textures/grass_clover_height.webp"
     },
     "moss": {
-      "color": "assets/textures/moss_color.jpg",
-      "normal": "assets/textures/moss_normal.jpg",
-      "roughness": "assets/textures/moss_roughness.jpg",
-      "height": "assets/textures/moss_height.jpg"
+      "color": "assets/textures/moss_color.webp",
+      "normal": "assets/textures/moss_normal.webp",
+      "roughness": "assets/textures/moss_roughness.webp",
+      "height": "assets/textures/moss_height.webp"
     },
     "bark": {
-      "color": "assets/textures/bark_color.jpg",
-      "normal": "assets/textures/bark_normal.jpg",
-      "roughness": "assets/textures/bark_roughness.jpg",
-      "height": "assets/textures/bark_height.jpg"
+      "color": "assets/textures/bark_color.webp",
+      "normal": "assets/textures/bark_normal.webp",
+      "roughness": "assets/textures/bark_roughness.webp",
+      "height": "assets/textures/bark_height.webp"
     },
     "ruin_stone": {
-      "color": "assets/textures/ruin_stone_color.jpg",
-      "normal": "assets/textures/ruin_stone_normal.jpg",
-      "roughness": "assets/textures/ruin_stone_roughness.jpg",
-      "height": "assets/textures/ruin_stone_height.jpg"
+      "color": "assets/textures/ruin_stone_color.webp",
+      "normal": "assets/textures/ruin_stone_normal.webp",
+      "roughness": "assets/textures/ruin_stone_roughness.webp",
+      "height": "assets/textures/ruin_stone_height.webp"
     },
     "grass_wild": {
-      "color": "assets/textures/grass_wild_color.jpg",
-      "normal": "assets/textures/grass_wild_normal.jpg",
-      "roughness": "assets/textures/grass_wild_roughness.jpg",
-      "height": "assets/textures/grass_wild_height.jpg"
+      "color": "assets/textures/grass_wild_color.webp",
+      "normal": "assets/textures/grass_wild_normal.webp",
+      "roughness": "assets/textures/grass_wild_roughness.webp",
+      "height": "assets/textures/grass_wild_height.webp"
     }
   },
   "icons": {
@@ -418,9 +418,9 @@
     "grass_tuft": "assets/ui/grass_tuft.png",
     "flower_clump": "assets/ui/flower_clump.png",
     "fern": "assets/ui/fern.png",
-    "clutter_flat": "assets/ui/clutter_flat.png",
-    "clutter_upright": "assets/ui/clutter_upright.png",
-    "water_decals": "assets/ui/water_decals.png",
-    "decor_atlas": "assets/ui/decor_atlas.png"
+    "clutter_flat": "assets/ui/clutter_flat.webp",
+    "clutter_upright": "assets/ui/clutter_upright.webp",
+    "water_decals": "assets/ui/water_decals.webp",
+    "decor_atlas": "assets/ui/decor_atlas.webp"
   }
 }
