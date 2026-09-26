@@ -5,6 +5,8 @@
 // - Ambience is alive: gusty wind, birdsong by day, crickets at night, rain.
 // - Recorded CC0 samples (sfx.ts) play on top where they exist; until they've loaded (or if a
 //   file is missing) the synth recipe alone covers the sound.
+// - Music (CC0, opengameart.org): "Medieval: The Old Tower Inn" (RandomMind) while building,
+//   "Determined Pursuit" (Emma_MA) during waves, crossfaded and looped gaplessly.
 
 import { SFX, SFX_FILES } from './sfx';
 
@@ -25,6 +27,11 @@ export class Audio {
   private gust = 0; private gustV = 0;
   private nextBird = 0; private nextCricket = 0;
   private buffers = new Map<string, AudioBuffer>();
+  private musicGain!: GainNode;
+  private tracks = new Map<string, { buf: AudioBuffer; start: number; end: number }>();
+  private playing: { name: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private wantTrack: string | null = null;
+  musicVolume = 0.45;
   volume = 0.6;
   /** Hard mute (`?mute` in the URL, for automated testing); leaves the saved volume alone. */
   muted = false;
@@ -40,6 +47,7 @@ export class Audio {
     this.master.connect(comp).connect(ctx.destination);
     this.sfx = ctx.createGain(); this.sfx.gain.value = 1.1; this.sfx.connect(this.master);
     this.amb = ctx.createGain(); this.amb.gain.value = 0.9; this.amb.connect(this.master);
+    this.musicGain = ctx.createGain(); this.musicGain.gain.value = this.muted ? 0 : this.musicVolume; this.musicGain.connect(this.master);
 
     const len = ctx.sampleRate * 2;
     this.noise = ctx.createBuffer(1, len, ctx.sampleRate);
@@ -77,7 +85,48 @@ export class Audio {
     this.nextBird = ctx.currentTime + 2;
     this.nextCricket = ctx.currentTime + 1;
     void this.loadSamples();
+    void this.loadMusic();
   }
+
+  private async loadMusic() {
+    const ctx = this.ctx!;
+    for (const name of ['build', 'wave']) {
+      try {
+        const r = await fetch(`assets/music/music_${name}.mp3`);
+        if (!r.ok) continue;
+        const buf = await ctx.decodeAudioData(await r.arrayBuffer());
+        // MP3 pads both ends with silence; loop between the first and last audible samples
+        const d = buf.getChannelData(0);
+        let a = 0, b = d.length - 1;
+        while (a < d.length && Math.abs(d[a]) < 1e-3) a++;
+        while (b > a && Math.abs(d[b]) < 1e-3) b--;
+        this.tracks.set(name, { buf, start: a / buf.sampleRate, end: (b + 1) / buf.sampleRate });
+        if (this.wantTrack === name) { this.wantTrack = null; this.music(name); }
+      } catch { /* no music, no problem */ }
+    }
+  }
+
+  /** Crossfade to a music track ('build' | 'wave'), or silence with null. Cheap to call every frame. */
+  music(name: string | null) {
+    if (!this.ctx || this.playing?.name === (name ?? '') ) return;
+    if (name && !this.tracks.has(name)) { this.wantTrack = name; return; }
+    const t = this.ctx.currentTime;
+    const old = this.playing;
+    if (old) { old.gain.gain.setTargetAtTime(0, t, 0.9); old.src.stop(t + 5); }
+    this.playing = null;
+    if (!name) return;
+    const tr = this.tracks.get(name)!;
+    const src = this.ctx.createBufferSource();
+    src.buffer = tr.buf; src.loop = true; src.loopStart = tr.start; src.loopEnd = tr.end;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.setTargetAtTime(1, t + 0.2, 1.0);
+    src.connect(g).connect(this.musicGain);
+    src.start(t, tr.start);
+    this.playing = { name, src, gain: g };
+  }
+
+  setMusicVolume(v: number) { this.musicVolume = v; if (this.ctx) this.musicGain.gain.value = this.muted ? 0 : v; }
 
   private async loadSamples() {
     const ctx = this.ctx!;

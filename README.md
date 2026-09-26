@@ -123,6 +123,8 @@ Missing models fall back to procedural placeholders, so the game always runs.
 
 Every sound is synthesized with WebAudio (`src/audio.ts`): the tower and spell effects, gusty wind, birdsong by day, crickets at night, and rain. Recorded CC0 samples from [Kenney](https://kenney.nl)'s Impact, RPG, Interface and Sci-fi packs are layered on top (`src/sfx.ts`). Each play varies slightly in pitch and gain and is panned by screen position, and voices are capped so rapid fire doesn't pile up. To rebuild the samples, unzip the packs into `tools/assets/raw/sfx/` and run `npx tsx tools/sfx.ts`.
 
+Music (CC0, from opengameart.org): "Medieval: The Old Tower Inn" by RandomMind plays while you build, and "Determined Pursuit (epic orchestra loop)" by Emma_MA plays during waves. They crossfade on phase changes, loop gaplessly, and have their own volume slider.
+
 ## Tests
 
 ```bash

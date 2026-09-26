@@ -33,7 +33,7 @@ import { W, H, Terrain as TerrainType } from './game/grid';
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 
 const SETTINGS_KEY = 'powertowers.settings';
-const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, edgeScroll: true, autoLink: true, showPath: false, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true, adaptive: true };
+const settings = { shadows: true, bloom: true, resolution: 1.5, volume: 0.6, music: 0.45, edgeScroll: true, autoLink: true, showPath: false, foliage: true, arcShadows: true, manyLights: true, ao: true, tiltShift: true, atmosphere: true, adaptive: true };
 // phones start lighter (they can turn things back on in Settings)
 const touchDevice = matchMedia('(pointer: coarse)').matches;
 if (touchDevice) Object.assign(settings, { resolution: 1.25, ao: false, manyLights: false, arcShadows: false, edgeScroll: false });
@@ -44,6 +44,8 @@ for (const t of ['gesturestart', 'gesturechange']) document.addEventListener(t, 
 const assets = new Assets();
 const audio = new Audio();
 audio.muted = new URLSearchParams(location.search).has('mute');
+audio.musicVolume = settings.music;
+audio.volume = settings.volume;
 const world = new World(canvas, { shadows: settings.shadows, bloom: settings.bloom, pixelRatio: settings.resolution, ao: settings.ao, tiltShift: settings.tiltShift, adaptive: settings.adaptive });
 assets.maxAnisotropy = world.renderer.capabilities.getMaxAnisotropy();
 
@@ -66,6 +68,7 @@ const hooks: AppHooks = {
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
     world.setQuality({ shadows: settings.shadows, bloom: settings.bloom, pixelRatio: settings.resolution, ao: settings.ao, tiltShift: settings.tiltShift, adaptive: settings.adaptive });
     audio.setVolume(settings.volume);
+    audio.setMusicVolume(settings.music);
     if (session) { session.ctrl.edgeScroll = settings.edgeScroll; session.game.autoLink = settings.autoLink; session.lights.shadowsEnabled = settings.shadows && settings.arcShadows; session.foliage.group.visible = settings.foliage; session.atmos.group.visible = settings.atmosphere; }
   },
   sound: (name) => audio.play(name, 0.8),
@@ -304,6 +307,7 @@ function tick(dt: number) {
   wu.uRain.value = s.fx.rainAmount;
 
   hud.update(dt);
+  audio.music(g.outcome !== 'playing' ? 'build' : g.phase === 'wave' ? 'wave' : 'build');
   const w = g.env.weather;
   audio.ambience(s.fx.rainAmount, world.nightness, w === 'storm' ? 2.2 : w === 'rain' ? 1.5 : w === 'cloudy' ? 1.2 : 1, dt);
   world.render();

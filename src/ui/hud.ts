@@ -16,7 +16,7 @@ export interface AppHooks {
   savedRun(): { round: number; difficulty: Difficulty } | null;
   restart(): void;
   toTitle(): void;
-  settings: { shadows: boolean; bloom: boolean; resolution: number; volume: number; edgeScroll: boolean; autoLink: boolean; showPath: boolean; foliage: boolean; arcShadows: boolean; manyLights: boolean; ao: boolean; tiltShift: boolean; atmosphere: boolean; adaptive: boolean };
+  settings: { shadows: boolean; bloom: boolean; resolution: number; volume: number; music: number; edgeScroll: boolean; autoLink: boolean; showPath: boolean; foliage: boolean; arcShadows: boolean; manyLights: boolean; ao: boolean; tiltShift: boolean; atmosphere: boolean; adaptive: boolean };
   applySettings(): void;
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean };
   /** Interface sound (click, error). */
@@ -911,7 +911,7 @@ export class Hud {
       i.onchange = () => { s[key] = i.checked; this.app.applySettings(); };
       return i;
     };
-    const range = (key: 'resolution' | 'volume', min: number, max: number, step: number) => {
+    const range = (key: 'resolution' | 'volume' | 'music', min: number, max: number, step: number) => {
       const i = el('input') as HTMLInputElement;
       i.type = 'range'; i.min = String(min); i.max = String(max); i.step = String(step); i.value = String(s[key]);
       i.onchange = () => { s[key] = Number(i.value); this.app.applySettings(); };
@@ -928,6 +928,7 @@ export class Hud {
     row('Resolution scale', range('resolution', 0.5, 2, 0.25));
     row('Adaptive resolution (holds the frame rate)', check('adaptive'));
     row('Volume', range('volume', 0, 1, 0.05));
+    row('Music', range('music', 0, 1, 0.05));
     row('Edge scrolling', check('edgeScroll'));
     row('Auto-link new structures', check('autoLink'));
     box.append(grid);
