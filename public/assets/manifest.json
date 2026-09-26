@@ -1,0 +1,382 @@
+{
+  "models": {
+    "wall_post": {
+      "url": "assets/models/wall_post.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "wall_span": {
+      "url": "assets/models/wall_span.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "pylon": {
+      "url": "assets/models/pylon.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "furnace": {
+      "url": "assets/models/furnace.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "water_wheel": {
+      "url": "assets/models/water_wheel.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "solar_panel": {
+      "url": "assets/models/solar_panel.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "capacitor": {
+      "url": "assets/models/capacitor.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "mana_well": {
+      "url": "assets/models/mana_well.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "ley_obelisk": {
+      "url": "assets/models/ley_obelisk.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "graveyard": {
+      "url": "assets/models/graveyard.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "ballista": {
+      "url": "assets/models/ballista.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "cannon": {
+      "url": "assets/models/cannon.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "tesla_coil": {
+      "url": "assets/models/tesla_coil.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "demon_tower": {
+      "url": "assets/models/demon_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "lich_tower": {
+      "url": "assets/models/lich_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "chemical_tower": {
+      "url": "assets/models/chemical_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "pyro_trap": {
+      "url": "assets/models/pyro_trap.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "dark_tower": {
+      "url": "assets/models/dark_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "vine_trap": {
+      "url": "assets/models/vine_trap.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "tsunami_tower": {
+      "url": "assets/models/tsunami_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "clock_tower": {
+      "url": "assets/models/clock_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "holy_tower": {
+      "url": "assets/models/holy_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "swarm_tower": {
+      "url": "assets/models/swarm_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "hero_tower": {
+      "url": "assets/models/hero_tower.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "castle_gate": {
+      "url": "assets/models/castle_gate.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "spawn_portal": {
+      "url": "assets/models/spawn_portal.glb",
+      "rigged": false,
+      "kind": "structure"
+    },
+    "orc_grunt": {
+      "url": "assets/models/orc_grunt.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "goblin_scout": {
+      "url": "assets/models/goblin_scout.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "ogre_brute": {
+      "url": "assets/models/ogre_brute.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "goblin_sapper": {
+      "url": "assets/models/goblin_sapper.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "skeleton_warrior": {
+      "url": "assets/models/skeleton_warrior.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "troll_berserker": {
+      "url": "assets/models/troll_berserker.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "orc_warlord": {
+      "url": "assets/models/orc_warlord.glb",
+      "rigged": true,
+      "kind": "runner"
+    },
+    "wraith": {
+      "url": "assets/models/wraith.glb",
+      "rigged": false,
+      "kind": "creature"
+    },
+    "power_leech": {
+      "url": "assets/models/power_leech.glb",
+      "rigged": false,
+      "kind": "creature"
+    },
+    "whelp": {
+      "url": "assets/models/whelp.glb",
+      "rigged": false,
+      "kind": "creature"
+    },
+    "pine_tree": {
+      "url": "assets/models/pine_tree.glb",
+      "rigged": false,
+      "kind": "prop"
+    },
+    "fir_tree": {
+      "url": "assets/models/fir_tree.glb",
+      "rigged": false,
+      "kind": "prop"
+    },
+    "rock_cluster": {
+      "url": "assets/models/rock_cluster.glb",
+      "rigged": false,
+      "kind": "prop"
+    },
+    "cliff_rock": {
+      "url": "assets/models/cliff_rock.glb",
+      "rigged": false,
+      "kind": "prop"
+    },
+    "brazier": {
+      "url": "assets/models/brazier.glb",
+      "rigged": false,
+      "kind": "prop"
+    },
+    "ley_crystal": {
+      "url": "assets/models/ley_crystal.glb",
+      "rigged": false,
+      "kind": "prop"
+    }
+  },
+  "textures": {
+    "grass": {
+      "color": "assets/textures/grass_color.jpg",
+      "normal": "assets/textures/grass_normal.jpg",
+      "roughness": "assets/textures/grass_roughness.jpg",
+      "height": "assets/textures/grass_height.jpg"
+    },
+    "forest": {
+      "color": "assets/textures/forest_color.jpg",
+      "normal": "assets/textures/forest_normal.jpg",
+      "roughness": "assets/textures/forest_roughness.jpg",
+      "height": "assets/textures/forest_height.jpg"
+    },
+    "trampled": {
+      "color": "assets/textures/trampled_color.jpg",
+      "normal": "assets/textures/trampled_normal.jpg",
+      "roughness": "assets/textures/trampled_roughness.jpg",
+      "height": "assets/textures/trampled_height.jpg"
+    },
+    "dirt": {
+      "color": "assets/textures/dirt_color.jpg",
+      "normal": "assets/textures/dirt_normal.jpg",
+      "roughness": "assets/textures/dirt_roughness.jpg",
+      "height": "assets/textures/dirt_height.jpg"
+    },
+    "mud": {
+      "color": "assets/textures/mud_color.jpg",
+      "normal": "assets/textures/mud_normal.jpg",
+      "roughness": "assets/textures/mud_roughness.jpg",
+      "height": "assets/textures/mud_height.jpg"
+    },
+    "rock": {
+      "color": "assets/textures/rock_color.jpg",
+      "normal": "assets/textures/rock_normal.jpg",
+      "roughness": "assets/textures/rock_roughness.jpg",
+      "height": "assets/textures/rock_height.jpg"
+    },
+    "sand": {
+      "color": "assets/textures/sand_color.jpg",
+      "normal": "assets/textures/sand_normal.jpg",
+      "roughness": "assets/textures/sand_roughness.jpg",
+      "height": "assets/textures/sand_height.jpg"
+    },
+    "scorched": {
+      "color": "assets/textures/scorched_color.jpg",
+      "normal": "assets/textures/scorched_normal.jpg",
+      "roughness": "assets/textures/scorched_roughness.jpg",
+      "height": "assets/textures/scorched_height.jpg"
+    },
+    "cobble": {
+      "color": "assets/textures/cobble_color.jpg",
+      "normal": "assets/textures/cobble_normal.jpg",
+      "roughness": "assets/textures/cobble_roughness.jpg",
+      "height": "assets/textures/cobble_height.jpg"
+    },
+    "water": {
+      "color": "assets/textures/water_color.jpg",
+      "normal": "assets/textures/water_normal.jpg"
+    }
+  },
+  "icons": {
+    "connect": "assets/icons/connect.webp",
+    "disconnect": "assets/icons/disconnect.webp",
+    "sell": "assets/icons/sell.webp",
+    "upgrade": "assets/icons/upgrade.webp",
+    "overcharge": "assets/icons/overcharge.webp",
+    "wall": "assets/icons/wall.webp",
+    "spikes": "assets/icons/spikes.webp",
+    "research": "assets/icons/research.webp",
+    "cat_defense": "assets/icons/cat_defense.webp",
+    "cat_power": "assets/icons/cat_power.webp",
+    "cat_arcane": "assets/icons/cat_arcane.webp",
+    "start_wave": "assets/icons/start_wave.webp",
+    "target": "assets/icons/target.webp",
+    "spell_thunderstorm": "assets/icons/spell_thunderstorm.webp",
+    "spell_blizzard": "assets/icons/spell_blizzard.webp",
+    "spell_meteor": "assets/icons/spell_meteor.webp",
+    "spell_plague": "assets/icons/spell_plague.webp",
+    "spell_curse": "assets/icons/spell_curse.webp",
+    "spell_consecrate": "assets/icons/spell_consecrate.webp",
+    "spell_whirlpool": "assets/icons/spell_whirlpool.webp",
+    "spell_overgrowth": "assets/icons/spell_overgrowth.webp",
+    "spell_stormbolt": "assets/icons/spell_stormbolt.webp",
+    "res_engineering": "assets/icons/res_engineering.webp",
+    "res_master_engineering": "assets/icons/res_master_engineering.webp",
+    "res_solar": "assets/icons/res_solar.webp",
+    "res_pyro": "assets/icons/res_pyro.webp",
+    "res_cryo": "assets/icons/res_cryo.webp",
+    "res_alchemy": "assets/icons/res_alchemy.webp",
+    "res_arcane": "assets/icons/res_arcane.webp",
+    "res_capacitors": "assets/icons/res_capacitors.webp",
+    "res_hydraulics": "assets/icons/res_hydraulics.webp",
+    "res_herbalism": "assets/icons/res_herbalism.webp",
+    "res_necromancy": "assets/icons/res_necromancy.webp",
+    "res_chrono": "assets/icons/res_chrono.webp",
+    "res_spellweaving": "assets/icons/res_spellweaving.webp",
+    "res_divinity": "assets/icons/res_divinity.webp",
+    "res_dragonkin": "assets/icons/res_dragonkin.webp",
+    "res_heroism": "assets/icons/res_heroism.webp",
+    "res_leymastery": "assets/icons/res_leymastery.webp",
+    "res_superconductors": "assets/icons/res_superconductors.webp",
+    "res_masonry": "assets/icons/res_masonry.webp"
+  },
+  "portraits": {
+    "wall_post": "assets/portraits/wall_post.webp",
+    "wall_span": "assets/portraits/wall_span.webp",
+    "pylon": "assets/portraits/pylon.webp",
+    "furnace": "assets/portraits/furnace.webp",
+    "water_wheel": "assets/portraits/water_wheel.webp",
+    "solar_panel": "assets/portraits/solar_panel.webp",
+    "capacitor": "assets/portraits/capacitor.webp",
+    "mana_well": "assets/portraits/mana_well.webp",
+    "ley_obelisk": "assets/portraits/ley_obelisk.webp",
+    "graveyard": "assets/portraits/graveyard.webp",
+    "ballista": "assets/portraits/ballista.webp",
+    "cannon": "assets/portraits/cannon.webp",
+    "tesla_coil": "assets/portraits/tesla_coil.webp",
+    "demon_tower": "assets/portraits/demon_tower.webp",
+    "lich_tower": "assets/portraits/lich_tower.webp",
+    "chemical_tower": "assets/portraits/chemical_tower.webp",
+    "pyro_trap": "assets/portraits/pyro_trap.webp",
+    "dark_tower": "assets/portraits/dark_tower.webp",
+    "vine_trap": "assets/portraits/vine_trap.webp",
+    "tsunami_tower": "assets/portraits/tsunami_tower.webp",
+    "clock_tower": "assets/portraits/clock_tower.webp",
+    "holy_tower": "assets/portraits/holy_tower.webp",
+    "swarm_tower": "assets/portraits/swarm_tower.webp",
+    "hero_tower": "assets/portraits/hero_tower.webp",
+    "castle_gate": "assets/portraits/castle_gate.webp",
+    "spawn_portal": "assets/portraits/spawn_portal.webp",
+    "orc_grunt": "assets/portraits/orc_grunt.webp",
+    "goblin_scout": "assets/portraits/goblin_scout.webp",
+    "ogre_brute": "assets/portraits/ogre_brute.webp",
+    "goblin_sapper": "assets/portraits/goblin_sapper.webp",
+    "skeleton_warrior": "assets/portraits/skeleton_warrior.webp",
+    "troll_berserker": "assets/portraits/troll_berserker.webp",
+    "orc_warlord": "assets/portraits/orc_warlord.webp",
+    "wraith": "assets/portraits/wraith.webp",
+    "power_leech": "assets/portraits/power_leech.webp",
+    "whelp": "assets/portraits/whelp.webp",
+    "pine_tree": "assets/portraits/pine_tree.webp",
+    "fir_tree": "assets/portraits/fir_tree.webp",
+    "rock_cluster": "assets/portraits/rock_cluster.webp",
+    "cliff_rock": "assets/portraits/cliff_rock.webp",
+    "brazier": "assets/portraits/brazier.webp",
+    "ley_crystal": "assets/portraits/ley_crystal.webp"
+  },
+  "ui": {
+    "hud_gold": "assets/ui/hud_gold.webp",
+    "hud_units": "assets/ui/hud_units.webp",
+    "hud_lives": "assets/ui/hud_lives.webp",
+    "hud_power": "assets/ui/hud_power.webp",
+    "hud_mana": "assets/ui/hud_mana.webp",
+    "hud_sun": "assets/ui/hud_sun.webp",
+    "hud_moon": "assets/ui/hud_moon.webp",
+    "hud_clear": "assets/ui/hud_clear.webp",
+    "hud_cloudy": "assets/ui/hud_cloudy.webp",
+    "hud_rain": "assets/ui/hud_rain.webp",
+    "hud_storm": "assets/ui/hud_storm.webp",
+    "hud_fog": "assets/ui/hud_fog.webp",
+    "checkpoint_rune": "assets/ui/checkpoint_rune.webp",
+    "title_art": "assets/ui/title_art.webp",
+    "grass_tuft": "assets/ui/grass_tuft.png",
+    "flower_clump": "assets/ui/flower_clump.png",
+    "fern": "assets/ui/fern.png",
+    "clutter_flat": "assets/ui/clutter_flat.png",
+    "clutter_upright": "assets/ui/clutter_upright.png"
+  }
+}

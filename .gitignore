@@ -1,0 +1,14 @@
+node_modules
+dist
+.env.local
+tools/assets/raw/
+*.log
+.DS_Store
+
+# pipeline state embeds the diffui build token in its URLs; concept art and raw Meshy
+# downloads are large intermediates (the game ships the optimized files in public/)
+tools/assets/state.json
+tools/assets/concepts/
+# local tooling and the original WC3 map (reference only)
+.claude/
+*.w3x

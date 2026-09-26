@@ -1,0 +1,27 @@
+{
+  "name": "power-towers",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "assets:concepts": "node tools/assets/pipeline.mjs concepts",
+    "assets:models": "node tools/assets/pipeline.mjs models",
+    "assets:textures": "node tools/assets/pipeline.mjs textures",
+    "assets:status": "node tools/assets/pipeline.mjs status"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.5.0",
+    "@types/three": "^0.186.0",
+    "sharp": "^0.35.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1"
+  }
+}
